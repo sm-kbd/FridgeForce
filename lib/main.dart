@@ -2,16 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_spinbox/material.dart';
 
 void main() {
-    runApp(MyApp());
+    runApp(FridgeForce());
 }
 
 
-class MyApp extends StatefulWidget {
+class FridgeForce extends StatefulWidget {
     @override
-    _MyAppState createState() => _MyAppState();
+    _FridgeForceState createState() => _FridgeForceState();
 }
 
-class _MyAppState extends State<MyApp> {
+class _FridgeForceState extends State<FridgeForce> {
     int _currentIndex = 0;
     final _pages = [
         const Text("list"),
