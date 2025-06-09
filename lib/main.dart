@@ -5,8 +5,19 @@ void main() {
     runApp(MyApp());
 }
 
-class MyApp extends StatelessWidget {
-    const MyApp({ Key? key }) : super(key: key);
+
+class MyApp extends StatefulWidget {
+    @override
+    _MyAppState createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+    int _currentIndex = 0;
+    final _pages = [
+        const Text("list"),
+        const Text("input"),
+        const Text("output")
+    ];
 
     @override
         Widget build(BuildContext context) {
@@ -17,9 +28,16 @@ class MyApp extends StatelessWidget {
                             backgroundColor: Colors.green,
                             ),
 
+                        body: IndexedStack(
+                            index: _currentIndex,
+                            children: _pages,
+                            ),
+
                         bottomNavigationBar: BottomNavigationBar(
+                            currentIndex: _currentIndex,
                             type: BottomNavigationBarType.fixed,
-                            items: const [
+                            onTap: (i) => setState(() => _currentIndex = i),
+                            items: [
                             BottomNavigationBarItem(
                                 icon: Icon(Icons.density_small_sharp),
                                 label: "リストアップ",
@@ -34,7 +52,7 @@ class MyApp extends StatelessWidget {
                                 ),
                             ],
                             ),
-                            ),
-                            );
+                        ),
+                        );
         }
 }
