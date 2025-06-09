@@ -1,58 +1,56 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_spinbox/material.dart';
+import 'tab/page1.dart';
+import 'tab/page2.dart';
+import 'tab/page3.dart';
 
-void main() {
-    runApp(FridgeForce());
+void main() => runApp(const BottomNavigationBarExampleApp());
+
+class BottomNavigationBarExampleApp extends StatelessWidget {
+  const BottomNavigationBarExampleApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(home: BottomNavigationBarExample());
+  }
 }
 
+class BottomNavigationBarExample extends StatefulWidget {
+  const BottomNavigationBarExample({super.key});
 
-class FridgeForce extends StatefulWidget {
-    @override
-    _FridgeForceState createState() => _FridgeForceState();
+  @override
+  State<BottomNavigationBarExample> createState() => _BottomNavigationBarExampleState();
 }
 
-class _FridgeForceState extends State<FridgeForce> {
-    int _currentIndex = 0;
-    final _pages = [
-        const Text("list"),
-        const Text("input"),
-        const Text("output")
-    ];
+class _BottomNavigationBarExampleState extends State<BottomNavigationBarExample> {
+  int _selectedIndex = 0;
+  static const List<Widget> _widgetOptions = <Widget>[
+    Page1(),
+    Page2(),
+    Page3(),
+  ];
 
-    @override
-        Widget build(BuildContext context) {
-            return MaterialApp(
-                    home: Scaffold(
-                        appBar: AppBar(
-                            title: const Text("FridgeForce"),
-                            backgroundColor: Colors.green,
-                            ),
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
 
-                        body: IndexedStack(
-                            index: _currentIndex,
-                            children: _pages,
-                            ),
-
-                        bottomNavigationBar: BottomNavigationBar(
-                            currentIndex: _currentIndex,
-                            type: BottomNavigationBarType.fixed,
-                            onTap: (i) => setState(() => _currentIndex = i),
-                            items: [
-                            BottomNavigationBarItem(
-                                icon: Icon(Icons.density_small_sharp),
-                                label: "リストアップ",
-                                ),
-                            BottomNavigationBarItem(
-                                icon: Icon(Icons.add),
-                                label: "登録",
-                                ),
-                            BottomNavigationBarItem(
-                                icon: Icon(Icons.pie_chart),
-                                label: "チャート表示",
-                                ),
-                            ],
-                            ),
-                        ),
-                        );
-        }
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(child: _widgetOptions.elementAt(_selectedIndex)),
+      bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,  
+        items: const <BottomNavigationBarItem>[
+          BottomNavigationBarItem(icon: Icon(Icons.density_small_sharp), label: 'リストアップ'),
+          BottomNavigationBarItem(icon: Icon(Icons.add), label: '登録'),
+          BottomNavigationBarItem(icon: Icon(Icons.pie_chart), label: 'チャート表示'),
+        ],
+        currentIndex: _selectedIndex,
+        
+        selectedItemColor: const Color.fromARGB(255, 81, 96, 92),
+        onTap: _onItemTapped,
+      ),
+    );
+  }
 }
