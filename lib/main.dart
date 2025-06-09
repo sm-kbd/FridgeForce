@@ -14,7 +14,7 @@ class MyApp extends StatelessWidget {
                     home: Scaffold(
                         appBar: AppBar(
                             title: const Text("FridgeForce"),
-                            backgroundColor: Colors.green,
+                            backgroundColor: Colors.red,
                             ),
 
                         body: ListView(
