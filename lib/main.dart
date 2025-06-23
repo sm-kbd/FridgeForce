@@ -44,7 +44,7 @@ class _FridgeForceState extends State<FridgeForce> {
                         items: const <BottomNavigationBarItem>[
                         BottomNavigationBarItem(icon: Icon(Icons.density_small_sharp), label: 'リストアップ'),
                         BottomNavigationBarItem(icon: Icon(Icons.add), label: '登録'),
-                        BottomNavigationBarItem(icon: Icon(Icons.pie_chart), label: 'チャート表示'),
+                        BottomNavigationBarItem(icon: Icon(Icons.restaurant), label: 'レシピ提案'),
                         ],
                         currentIndex: _currentIndex,
 
