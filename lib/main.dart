@@ -1,9 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'tab/main_view.dart';
 import 'tab/input_view.dart';
 import 'tab/chart_view.dart';
+import 'database.dart';
 
-void main() => runApp(const FridgeForceApp());
+void main() {
+    // Initialize FFI
+    sqfliteFfiInit();
+
+    // Set the global factory
+    databaseFactory = databaseFactoryFfi;
+    runApp(const FridgeForceApp());
+}
+
 
 class FridgeForceApp extends StatelessWidget {
     const FridgeForceApp({super.key});
@@ -50,7 +60,7 @@ class _FridgeForceState extends State<FridgeForce> {
 
                         selectedItemColor: const Color.fromARGB(255, 81, 96, 92),
                         onTap: (itemId) => setState(() => _currentIndex = itemId),
-                            ),
-                        );
-                    }
-                    }
+                        ),
+                    );
+        }
+}
