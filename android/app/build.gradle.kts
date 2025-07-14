@@ -8,7 +8,7 @@ plugins {
 android {
     namespace = "com.example.fridgeforce"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    ndkVersion = "27.0.12077973"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -32,6 +32,12 @@ android {
 
     buildTypes {
         release {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
@@ -41,4 +47,12 @@ android {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // Add language packages you need
+    // implementation("com.google.mlkit:text-recognition-chinese:16.0.0")
+    // implementation("com.google.mlkit:text-recognition-devanagari:16.0.0")
+    implementation("com.google.mlkit:text-recognition-japanese:16.0.0")
+    // implementation("com.google.mlkit:text-recognition-korean:16.0.0")
 }

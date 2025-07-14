@@ -1,66 +1,152 @@
+import 'dart:io';
+import 'dart:typed_data';
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-import 'tab/main_view.dart';
-import 'tab/input_view.dart';
-import 'tab/chart_view.dart';
-import 'database.dart';
+import 'package:camera/camera.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as path;
 
-void main() {
-    // Initialize FFI
-    sqfliteFfiInit();
+void main() async {
+    WidgetsFlutterBinding.ensureInitialized();
+    final cameras = await availableCameras();
+    final firstCamera = cameras.first;
 
-    // Set the global factory
-    databaseFactory = databaseFactoryFfi;
-    runApp(const FridgeForceApp());
+    runApp(MyApp(camera: firstCamera));
 }
 
+class MyApp extends StatelessWidget {
+    final CameraDescription camera;
 
-class FridgeForceApp extends StatelessWidget {
-    const FridgeForceApp({super.key});
+    const MyApp({super.key, required this.camera});
 
     @override
         Widget build(BuildContext context) {
-            return const MaterialApp(home: FridgeForce());
+            return MaterialApp(
+                    home: CameraScreen(camera: camera),
+                    );
         }
 }
 
-class FridgeForce extends StatefulWidget {
-    const FridgeForce({super.key});
+class CameraScreen extends StatefulWidget {
+    final CameraDescription camera;
+
+    const CameraScreen({super.key, required this.camera});
 
     @override
-        State<FridgeForce> createState() => _FridgeForceState();
+        State<CameraScreen> createState() => _CameraScreenState();
 }
 
-class _FridgeForceState extends State<FridgeForce> {
-    int _currentIndex = 0;
-    static const List<Widget> _widgetOptions = <Widget>[
-        MainView(),
-        InputView(),
-        ChartsView(),
-    ];
+class _CameraScreenState extends State<CameraScreen> {
+    late CameraController _controller;
+    late Future<void> _initializeControllerFuture;
+    Uint8List? _imageBytes;
 
-    void _onItemTapped(int index) {
-        setState(() {
-                _currentIndex = index;
-                });
+    @override
+        void initState() {
+            super.initState();
+            _controller = CameraController(widget.camera, ResolutionPreset.high);
+            _initializeControllerFuture = _controller.initialize();
+
+            SystemChrome.setSystemUIOverlayStyle(
+                    SystemUiOverlayStyle(
+                        statusBarColor: Colors.black, // Top bar color
+                        systemNavigationBarColor: Colors.black, // Bottom bar color
+                        statusBarIconBrightness: Brightness.light, // Icons on top bar (battery, time)
+                        systemNavigationBarIconBrightness: Brightness.light, // Icons on bottom bar
+                        ),
+                    );
+        }
+
+    @override
+        void dispose() {
+            _controller.dispose();
+            super.dispose();
+        }
+
+    Future<void> _takePicture() async {
+        try {
+            await _initializeControllerFuture;
+            final image = await _controller.takePicture();
+
+            // Read file as bytes
+            final bytes = await File(image.path).readAsBytes();
+
+            setState(() {
+                    _imageBytes = bytes;
+                    });
+
+            // Optionally delete the temp file if you don't need it
+            await File(image.path).delete();
+        } catch (e) {
+            print("Error taking picture: $e");
+        }
     }
 
     @override
         Widget build(BuildContext context) {
             return Scaffold(
-                    body: Center(child: _widgetOptions.elementAt(_currentIndex)),
-                    bottomNavigationBar: BottomNavigationBar(
-                        type: BottomNavigationBarType.fixed,  
-                        items: const <BottomNavigationBarItem>[
-                        BottomNavigationBarItem(icon: Icon(Icons.density_small_sharp), label: 'リストアップ'),
-                        BottomNavigationBarItem(icon: Icon(Icons.add), label: '登録'),
-                        BottomNavigationBarItem(icon: Icon(Icons.restaurant), label: 'レシピ提案'),
-                        ],
-                        currentIndex: _currentIndex,
-
-                        selectedItemColor: const Color.fromARGB(255, 81, 96, 92),
-                        onTap: (itemId) => setState(() => _currentIndex = itemId),
+                    body: FutureBuilder<void>(
+                        future: _initializeControllerFuture,
+                        builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.done) {
+                        return Scaffold(
+                                backgroundColor: Colors.black,
+                                body: SafeArea(
+                                    child: Stack(
+                                        children: [
+                                        Positioned.fill(
+                                            child:FittedBox(
+                                                fit: BoxFit.cover,
+                                                child: SizedBox(
+                                                    // because camera is landscape but screen is portrait
+                                                    width: _controller.value.previewSize!.height,
+                                                    height: _controller.value.previewSize!.width,
+                                                    child: CameraPreview(_controller),
+                                                    ),
+                                                ),
+                                            ),
+                                        Positioned(
+                                            bottom: MediaQuery.of(context).size.height * 0.05,
+                                            left: 0,
+                                            right: 0,
+                                            child: Center(
+                                                child: ElevatedButton(
+                                                    onPressed: _takePicture,
+                                                    style: ElevatedButton.styleFrom(
+                                                        shape: const CircleBorder(),
+                                                        padding: const EdgeInsets.all(20),
+                                                        ),
+                                                    child: const Icon(
+                                                    Icons.camera_alt,
+                                                    size: 32,
+                                                    ),
+                                                    ),
+                                                ),
+                                            ),
+                                        if (_imageBytes != null)
+                                            Positioned(
+                                                    top: 40,
+                                                    right: 20,
+                                                    child: ClipRRect(
+                                                        borderRadius: BorderRadius.circular(8),
+                                                        child: Image.memory(
+                                                            _imageBytes!,
+                                                            width: 100,
+                                                            height: 100,
+                                                            fit: BoxFit.cover,
+                                                            ),
+                                                        ),
+                                                    ),
+                                                ],
+                                                ),
+                                                ),
+                                                );
+                        } else {
+                            return const Center(child: CircularProgressIndicator());
+                        }
+                        },
                         ),
-                    );
+                        );
         }
 }
+
