@@ -1,14 +1,14 @@
 import 'dart:io';
 import 'dart:math';
+import 'dart:async';
 import 'dart:typed_data';
+import 'package:camera/camera.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
-import 'package:camera/camera.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
-import 'dart:async';
+import 'package:flutter/rendering.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
-import 'package:image/image.dart' as img;
 
 void main() async {
     WidgetsFlutterBinding.ensureInitialized();
@@ -82,12 +82,15 @@ class OverlayPainter extends CustomPainter {
 class _CameraScreenState extends State<CameraScreen> {
     late CameraController _controller;
     late Future<void> _initializeControllerFuture;
-    Uint8List? _imageBytes;
 
     final TextRecognizer _textRecognizer = TextRecognizer();
     List<Rect> _boundingBoxes = [];
     bool _isProcessing = false;
     DateTime _lastProcessed = DateTime.now();
+
+    Uint8List? _frozenCapture;
+    bool _isFrozen = false;
+    late List<Rect> _frozenBoxes = [];
 
     @override
         void initState() {
@@ -110,35 +113,50 @@ class _CameraScreenState extends State<CameraScreen> {
         void dispose() {
             _controller.dispose();
             super.dispose();
-            _controller.stopImageStream();
+            if (_controller.value.isStreamingImages) {
+                _controller.stopImageStream();
+            }
             _textRecognizer.close();
         }
 
-    Future<void> _takePicture() async {
+    Future<void> _freeze() async {
         try {
-            await _initializeControllerFuture;
+            await _controller.stopImageStream();
+            await Future.delayed(Duration(milliseconds: 500)); // Give it time
+
             final image = await _controller.takePicture();
 
-            // Read file as bytes
             final bytes = await File(image.path).readAsBytes();
+            if (bytes.isEmpty) {
+                setState(() { _isFrozen = false; });
+                startOcrStream();
+                return;
+            }
 
             setState(() {
-                    _imageBytes = bytes;
+                    _isFrozen = true;
+                    _frozenCapture = bytes;
+                    _frozenBoxes = List.from(_boundingBoxes);
                     });
 
-            // Optionally delete the temp file if you don't need it
             await File(image.path).delete();
         } catch (e) {
             print("Error taking picture: $e");
         }
     }
 
+    void _handleTap(TapDownDetails details) {
+        startOcrStream();
+    }
+
     void startOcrStream() {
         _controller.startImageStream((CameraImage image) async {
                 final now = DateTime.now();
 
-                if (_isProcessing) return; // Prevent overlapping
-                if (now.difference(_lastProcessed).inMilliseconds < 500) return; // Throttle
+                if (_isProcessing || (now.difference(_lastProcessed).inMilliseconds < 500)) {
+                // Prevent overlapping and throttle
+                return;
+                }
 
                 _isProcessing = true;
                 _lastProcessed = now;
@@ -185,6 +203,7 @@ class _CameraScreenState extends State<CameraScreen> {
         return InputImage.fromBytes(bytes: bytes, metadata: inputImageData);
     }
 
+
     @override
         Widget build(BuildContext context) {
             return Scaffold(
@@ -204,59 +223,50 @@ class _CameraScreenState extends State<CameraScreen> {
                                                     // because camera is landscape but screen is portrait
                                                     width: _controller.value.previewSize!.height,
                                                     height: _controller.value.previewSize!.width,
-                                                    child: CameraPreview(_controller),
-                                                    ),
+                                                    child: !_isFrozen
+                                                        ? CameraPreview(_controller)
+                                                        : GestureDetector(
+                                                            onTapDown: _handleTap,
+                                                            child: Image.memory(_frozenCapture!),
+                                                            ),
+                                                        ),
                                                 ),
                                             ),
-                                        Positioned.fill(
-                                            child: CustomPaint(
-                                                painter: OverlayPainter(
-                                                    _boundingBoxes,
-                                                    Size(_controller.value.previewSize!.height, _controller.value.previewSize!.width),
-                                                    Size(
-                                                        MediaQuery.sizeOf(context).width - (MediaQuery.of(context).padding.left + MediaQuery.of(context).padding.right),
-                                                        MediaQuery.sizeOf(context).height - (MediaQuery.of(context).padding.top + MediaQuery.of(context).padding.bottom),
-                                                        ),
-                                                    ),
+                        Positioned.fill(
+                                child: CustomPaint(
+                                    painter: OverlayPainter(
+                                        _isFrozen ? _frozenBoxes : _boundingBoxes,
+                                        Size(_controller.value.previewSize!.height, _controller.value.previewSize!.width),
+                                        Size(
+                                            MediaQuery.sizeOf(context).width - (MediaQuery.of(context).padding.left + MediaQuery.of(context).padding.right),
+                                            MediaQuery.sizeOf(context).height - (MediaQuery.of(context).padding.top + MediaQuery.of(context).padding.bottom),
+                                            ),
+                                        ),
 
-                                                ),
+                                    ),
+                                ),
+                        Positioned(
+                                bottom: MediaQuery.sizeOf(context).height * 0.10,
+                                left: 0,
+                                right: 0,
+                                child: Center(
+                                    child: ElevatedButton(
+                                        onPressed: _freeze,
+                                        style: ElevatedButton.styleFrom(
+                                            shape: const CircleBorder(),
+                                            padding: const EdgeInsets.all(20),
                                             ),
-                                        Positioned(
-                                                bottom: MediaQuery.sizeOf(context).height * 0.10,
-                                                left: 0,
-                                                right: 0,
-                                                child: Center(
-                                                    child: ElevatedButton(
-                                                        onPressed: _takePicture,
-                                                        style: ElevatedButton.styleFrom(
-                                                            shape: const CircleBorder(),
-                                                            padding: const EdgeInsets.all(20),
-                                                            ),
-                                                        child: const Icon(
-                                                            Icons.camera_alt,
-                                                            size: 32,
-                                                            ),
-                                                        ),
-                                                    ),
-                                                ),
-                                        if (_imageBytes != null)
-                                            Positioned(
-                                                    top: 40,
-                                                    right: 20,
-                                                    child: ClipRRect(
-                                                        borderRadius: BorderRadius.circular(8),
-                                                        child: Image.memory(
-                                                            _imageBytes!,
-                                                            width: 100,
-                                                            height: 100,
-                                                            fit: BoxFit.cover,
-                                                            ),
-                                                        ),
-                                                    ),
-                                                ],
-                                                ),
-                                                ),
-                                                );
+                                        child: const Icon(
+                                            Icons.screenshot_monitor,
+                                            size: 32,
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                        ],
+                        ),
+                        ),
+                        );
                         } else {
                             return const Center(child: CircularProgressIndicator());
                         }
