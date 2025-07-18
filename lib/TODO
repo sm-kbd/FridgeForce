@@ -1,0 +1,8 @@
+"take photo" to freeze the frame
+tap to select a bounding box
+change color of selected bounding boxees
+change "freeze frame" button to "save" button
+move all the data to input view
+
+adapt to iOS:
+    google_mlkit_text_recognition
