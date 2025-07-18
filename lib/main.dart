@@ -38,8 +38,17 @@ class CameraScreen extends StatefulWidget {
   State<CameraScreen> createState() => _CameraScreenState();
 }
 
+class Box {
+  final Rect rect;
+  bool isSelected = false;
+
+  Box(this.rect);
+
+  Color get borderColor => isSelected ? Colors.green : Colors.red;
+}
+
 class OverlayPainter extends CustomPainter {
-  final List<Rect> boxes;
+  final List<Box> boxes;
   final Size previewSize;
   final Size screenSize;
 
@@ -48,7 +57,6 @@ class OverlayPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.red
       ..strokeWidth = 2
       ..style = PaintingStyle.stroke;
 
@@ -62,11 +70,12 @@ class OverlayPainter extends CustomPainter {
     final double offsetX = (screenSize.width - previewSize.width * scale) / 2;
 
     for (final box in boxes) {
+      paint.color = box.borderColor;
       final transformed = Rect.fromLTWH(
-        box.left * scale + offsetX,
-        box.top * scale + offsetY,
-        box.width * scale,
-        box.height * scale,
+        box.rect.left * scale + offsetX,
+        box.rect.top * scale + offsetY,
+        box.rect.width * scale,
+        box.rect.height * scale,
       );
 
       canvas.drawRect(transformed, paint);
@@ -82,13 +91,13 @@ class _CameraScreenState extends State<CameraScreen> {
   late Future<void> _initializeControllerFuture;
 
   final TextRecognizer _textRecognizer = TextRecognizer();
-  List<Rect> _boundingBoxes = [];
+  List<Box> _boundingBoxes = [];
   bool _isProcessing = false;
   DateTime _lastProcessed = DateTime.now();
 
   Uint8List? _frozenCapture;
   bool _isFrozen = false;
-  late List<Rect> _frozenBoxes = [];
+  late List<Box> _frozenBoxes = [];
 
   @override
   void initState() {
@@ -151,8 +160,17 @@ class _CameraScreenState extends State<CameraScreen> {
   }
 
   void _handleTap(TapDownDetails details) {
-    print("here");
-    startOcrStream();
+    final Offset tapPos = details.localPosition;
+
+    for (final box in _frozenBoxes) {
+      if (box.rect.contains(tapPos)) {
+        setState(() {
+          box.isSelected = !box.isSelected;
+          print(box.isSelected);
+        });
+        break;
+      }
+    }
   }
 
   void startOcrStream() {
@@ -177,9 +195,9 @@ class _CameraScreenState extends State<CameraScreen> {
         final text = recognizedText.text;
         print("Text is $text");
 
-        List<Rect> boxes = [];
+        List<Box> boxes = [];
         for (final block in recognizedText.blocks) {
-          boxes.add(block.boundingBox);
+          boxes.add(Box(block.boundingBox));
         }
 
         setState(() => _boundingBoxes = boxes);
