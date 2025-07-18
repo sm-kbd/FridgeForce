@@ -19,10 +19,6 @@ class InputView extends StatelessWidget {
 class MyPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: Text('い'),
-      ),
-    );
+    return const Scaffold(body: Center(child: Text('い')));
   }
 }
