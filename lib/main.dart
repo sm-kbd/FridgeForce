@@ -2,13 +2,29 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:async';
 import 'dart:typed_data';
+import 'dart:developer' as devtools;
+
 import 'package:camera/camera.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as path;
 import 'package:flutter/rendering.dart';
+import 'package:image/image.dart' as imglib;
 import 'package:path_provider/path_provider.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+
+final dateRegex = RegExp(
+  r'(?:' +
+      r'(?:令和|平成|昭和)? *?(\d{1,4}[-/\.\:年] *?\d{1,2}([-/\.\:月] *?\d{1,2}日?)?)' + // e.g., 2025年7月21日
+      r'|' +
+      r'(?:\d{8})' + // e.g., 20250721
+      r')',
+);
+
+final expiryKeywords = RegExp(
+  r'(賞味期限|消費期限|有効期限|EXP\.?|Expiry|Expiration)',
+  caseSensitive: false,
+);
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -38,59 +54,14 @@ class CameraScreen extends StatefulWidget {
   State<CameraScreen> createState() => _CameraScreenState();
 }
 
-class Box {
-  final Rect rect;
-  bool isSelected = false;
-
-  Box(this.rect);
-
-  Color get borderColor => isSelected ? Colors.green : Colors.red;
-}
-
-class OverlayPainter extends CustomPainter {
-  final List<Box> boxes;
-  final Size previewSize;
-  final Size screenSize;
-
-  OverlayPainter(this.boxes, this.previewSize, this.screenSize);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..strokeWidth = 2
-      ..style = PaintingStyle.stroke;
-
-    final scale = min(
-      screenSize.width / previewSize.width,
-      screenSize.height / previewSize.height,
-    );
-
-    // Black bar offsets
-    final double offsetY = (screenSize.height - previewSize.height * scale) / 2;
-    final double offsetX = (screenSize.width - previewSize.width * scale) / 2;
-
-    for (final box in boxes) {
-      paint.color = box.borderColor;
-      final transformed = Rect.fromLTWH(
-        box.rect.left * scale + offsetX,
-        box.rect.top * scale + offsetY,
-        box.rect.width * scale,
-        box.rect.height * scale,
-      );
-
-      canvas.drawRect(transformed, paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
-}
-
 class _CameraScreenState extends State<CameraScreen> {
+  bool _isCapturing = false;
   late CameraController _controller;
   late Future<void> _initializeControllerFuture;
 
-  final TextRecognizer _textRecognizer = TextRecognizer();
+  final TextRecognizer _textRecognizer = TextRecognizer(
+    script: TextRecognitionScript.japanese,
+  );
   List<Box> _boundingBoxes = [];
   bool _isProcessing = false;
   DateTime _lastProcessed = DateTime.now();
@@ -130,33 +101,60 @@ class _CameraScreenState extends State<CameraScreen> {
     _textRecognizer.close();
   }
 
-  Future<void> _freeze() async {
+  Future<void> _onCapturePressed() async {
+    if (_isCapturing) {
+      return;
+    }
+
+    setState(() => _isCapturing = true);
+
+    await Future.delayed(Duration(milliseconds: 200));
+
     try {
       await _controller.stopImageStream();
       await _controller.pausePreview();
-
       final image = await _controller.takePicture();
+      final imageFile = File(image.path);
 
-      final bytes = await File(image.path).readAsBytes();
-      if (bytes.isEmpty) {
-        await _controller.resumePreview();
-        setState(() {
-          _isFrozen = false;
-        });
-        startOcrStream();
-        return;
+      final Uint8List prepedImage = await prepImage(image.path);
+
+      // not possible to load jpeg bytes into InputImage
+      final tempDir = await getTemporaryDirectory();
+      final file = await File(
+        '${tempDir.path}/frame.jpg',
+      ).writeAsBytes(prepedImage);
+      final inputImage = InputImage.fromFile(file);
+
+      final recognizedText = await _textRecognizer.processImage(inputImage);
+
+      List<Box> boxes = [];
+      for (final block in recognizedText.blocks) {
+        if (isDateTime(block.text)) {
+          boxes.add(Box(block.boundingBox, block.text));
+        }
       }
+
+      final bytes = await imageFile.readAsBytes();
 
       setState(() {
         _isFrozen = true;
         _frozenCapture = bytes;
-        _frozenBoxes = List.from(_boundingBoxes);
+        _frozenBoxes = boxes;
       });
 
-      await File(image.path).delete();
+      await file.delete();
+      await imageFile.delete();
     } catch (e) {
-      print("Error taking picture: $e");
+      devtools.log("Error taking picture: $e", name: "fridgeforce");
+
+      await _controller.resumePreview();
+      startOcrStream();
+      setState(() {
+        _isFrozen = false;
+        _frozenBoxes = [];
+      });
     }
+    setState(() => _isCapturing = false);
   }
 
   void _handleTap(TapDownDetails details) {
@@ -164,10 +162,8 @@ class _CameraScreenState extends State<CameraScreen> {
 
     for (final box in _frozenBoxes) {
       if (box.rect.contains(tapPos)) {
-        setState(() {
-          box.isSelected = !box.isSelected;
-          print(box.isSelected);
-        });
+        print(dateRegex.firstMatch(box.text)?.group(1));
+        setState(() => box.isSelected = !box.isSelected);
         break;
       }
     }
@@ -187,53 +183,40 @@ class _CameraScreenState extends State<CameraScreen> {
       _lastProcessed = now;
 
       try {
-        final inputImage = _convertToInputImage(
-          image,
-          _controller.description.sensorOrientation,
+        final bytes = cameraImageToBytes(image);
+
+        final inputImage = InputImage.fromBytes(
+          bytes: bytes,
+          metadata: InputImageMetadata(
+            size: Size(image.width.toDouble(), image.height.toDouble()),
+            rotation:
+                InputImageRotationValue.fromRawValue(
+                  _controller.description.sensorOrientation,
+                ) ??
+                InputImageRotation.rotation0deg,
+            format: Platform.isAndroid
+                ? InputImageFormat.nv21
+                : InputImageFormat.bgra8888,
+            bytesPerRow: image.planes[0].bytesPerRow,
+          ),
         );
+
         final recognizedText = await _textRecognizer.processImage(inputImage);
-        final text = recognizedText.text;
-        print("Text is $text");
 
         List<Box> boxes = [];
         for (final block in recognizedText.blocks) {
-          boxes.add(Box(block.boundingBox));
+          if (isDateTime(block.text)) {
+            boxes.add(Box(block.boundingBox, block.text));
+          }
         }
 
         setState(() => _boundingBoxes = boxes);
       } catch (e) {
-        print('OCR error: $e');
+        devtools.log('OCR error: $e', name: "fridgeforce");
       } finally {
         _isProcessing = false;
       }
     });
-  }
-
-  InputImage _convertToInputImage(CameraImage image, int rotation) {
-    final WriteBuffer allBytes = WriteBuffer();
-    for (final Plane plane in image.planes) {
-      allBytes.putUint8List(plane.bytes);
-    }
-
-    final bytes = allBytes.done().buffer.asUint8List();
-
-    final Size imageSize = Size(
-      image.width.toDouble(),
-      image.height.toDouble(),
-    );
-
-    final inputImageData = InputImageMetadata(
-      size: imageSize,
-      rotation:
-          InputImageRotationValue.fromRawValue(rotation) ??
-          InputImageRotation.rotation0deg,
-      format: Platform.isAndroid
-          ? InputImageFormat.nv21
-          : InputImageFormat.bgra8888,
-      bytesPerRow: image.planes[0].bytesPerRow,
-    );
-
-    return InputImage.fromBytes(bytes: bytes, metadata: inputImageData);
   }
 
   @override
@@ -297,7 +280,7 @@ class _CameraScreenState extends State<CameraScreen> {
                             ? Row(
                                 children: [
                                   ElevatedButton(
-                                    onPressed: _freeze,
+                                    onPressed: () async => _onCapturePressed(),
                                     style: ElevatedButton.styleFrom(
                                       shape: const CircleBorder(),
                                       padding: const EdgeInsets.all(20),
@@ -305,7 +288,7 @@ class _CameraScreenState extends State<CameraScreen> {
                                     child: const Icon(Icons.camera, size: 32),
                                   ),
                                   ElevatedButton(
-                                    onPressed: _freeze,
+                                    onPressed: () async => _onCapturePressed(),
                                     style: ElevatedButton.styleFrom(
                                       shape: const CircleBorder(),
                                       padding: const EdgeInsets.all(20),
@@ -315,7 +298,9 @@ class _CameraScreenState extends State<CameraScreen> {
                                 ],
                               )
                             : ElevatedButton(
-                                onPressed: _freeze,
+                                onPressed: _isCapturing
+                                    ? null
+                                    : () async => _onCapturePressed(),
                                 style: ElevatedButton.styleFrom(
                                   shape: const CircleBorder(),
                                   padding: const EdgeInsets.all(20),
@@ -338,4 +323,84 @@ class _CameraScreenState extends State<CameraScreen> {
       ),
     );
   }
+}
+
+class Box {
+  final Rect rect;
+  final text;
+  bool isSelected = false;
+
+  Box(this.rect, this.text);
+
+  Color get borderColor => isSelected ? Colors.green : Colors.red;
+}
+
+class OverlayPainter extends CustomPainter {
+  final List<Box> boxes;
+  final Size previewSize;
+  final Size screenSize;
+
+  OverlayPainter(this.boxes, this.previewSize, this.screenSize);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..strokeWidth = 4
+      ..style = PaintingStyle.stroke;
+
+    final scale = min(
+      screenSize.width / previewSize.width,
+      screenSize.height / previewSize.height,
+    );
+
+    // Black bar offsets
+    final double offsetY = (screenSize.height - previewSize.height * scale) / 2;
+    final double offsetX = (screenSize.width - previewSize.width * scale) / 2;
+
+    for (final box in boxes) {
+      paint.color = box.borderColor;
+      final transformed = Rect.fromLTWH(
+        box.rect.left * scale + offsetX,
+        box.rect.top * scale + offsetY,
+        box.rect.width * scale,
+        box.rect.height * scale,
+      );
+
+      canvas.drawRect(transformed, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+}
+
+///////////////////////////// UTIL FUNCTIONS ///////////////////////////////////
+Uint8List cameraImageToBytes(CameraImage image) {
+  final WriteBuffer allBytes = WriteBuffer();
+  for (final Plane plane in image.planes) {
+    allBytes.putUint8List(plane.bytes);
+  }
+
+  final bytes = allBytes.done().buffer.asUint8List();
+  return bytes;
+}
+
+Future<Uint8List> prepImage(String path) async {
+  imglib.Image? original = await imglib.decodeJpgFile(path);
+
+  if (original == null) {
+    throw Exception("Failed to decode image.");
+  }
+  imglib.Image gray = imglib.grayscale(original);
+  imglib.Image contrastEnhanced = imglib.adjustColor(gray, contrast: 1.2);
+
+  return Uint8List.fromList(imglib.encodeJpg(contrastEnhanced));
+}
+
+bool isDateTime(String s) {
+  final match = dateRegex.firstMatch(s);
+  if (match != null) {
+    return true;
+  }
+  return false;
 }
