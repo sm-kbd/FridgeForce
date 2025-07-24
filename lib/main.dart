@@ -354,8 +354,23 @@ Future<Uint8List> prepImage(String path) async {
 
 bool isDateTime(String s) {
   final match = dateRegex.firstMatch(s);
-  if (match != null) {
-    return true;
-  }
-  return false;
+  if (match == null) return false;
+
+  DateTime now = DateTime.now();
+  String yearStr = match.group(2)!;
+  int year = int.parse(yearStr.length < 4 ? "20$yearStr" : yearStr);
+  if (year < now.year || year > now.year + 5) return false;
+
+print("match0 ${match.group(0)}");
+print("match1 ${match.group(1)}");
+print("match2 ${match.group(2)}");
+print("match3 ${match.group(3)}");
+print("match4 ${match.group(4)}");
+
+  int month = match.group(3) == null ? 12 : int.parse(match.group(3)!);
+  int day = match.group(4) == null ? 31 : int.parse(match.group(4)!);
+
+  final dateTime = DateTime(year, month, day);
+  return year == dateTime.year &&
+      month == dateTime.month;
 }
