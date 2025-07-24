@@ -72,11 +72,7 @@ class _CameraScreenState extends State<CameraScreen> {
   @override
   void initState() {
     super.initState();
-    _controller = CameraController(widget.camera, ResolutionPreset.high);
-    _initializeControllerFuture = _controller.initialize();
-    _initializeControllerFuture.then((_) {
-      startOcrStream();
-    });
+    _initializeCamera();
 
     SystemChrome.setSystemUIOverlayStyle(
       SystemUiOverlayStyle(
@@ -88,6 +84,14 @@ class _CameraScreenState extends State<CameraScreen> {
             Brightness.light, // Icons on bottom bar
       ),
     );
+  }
+
+  void _initializeCamera() {
+    _controller = CameraController(widget.camera, ResolutionPreset.high);
+    _initializeControllerFuture = _controller.initialize();
+    _initializeControllerFuture.then((_) {
+      startOcrStream();
+    });
   }
 
   @override
@@ -121,7 +125,12 @@ class _CameraScreenState extends State<CameraScreen> {
     } catch (e) {
       devtools.log("Error taking picture: $e", name: "fridgeforce");
     }
-    setState(() => _isCapturing = false);
+    setState(() {
+      _isCapturing = false;
+    });
+
+    await _controller
+        .dispose(); // need to re-initialize because resumePreview broken
   }
 
   void _handleTap(TapDownDetails details) {
@@ -188,18 +197,31 @@ class _CameraScreenState extends State<CameraScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async => await _onCapturePressed(),
-        child: Icon(
-          _isFrozen ? Icons.save : Icons.screenshot_monitor,
-          size: 32,
+    return WillPopScope(
+      onWillPop: () async {
+        if (_isFrozen) {
+          _initializeCamera();
+          setState(() {
+            _isFrozen = false;
+            _boundingBoxes = [];
+          });
+          return false;
+        }
+        return true;
+      },
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        floatingActionButton: FloatingActionButton(
+          onPressed: _isCapturing || !_controller.value.isInitialized
+              ? null
+              : () async => await _onCapturePressed(),
+          child: Icon(
+            _isFrozen ? Icons.save : Icons.screenshot_monitor,
+            size: 32,
+          ),
         ),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-      body: SafeArea(
-        child: FutureBuilder<void>(
+        floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+        body: FutureBuilder<void>(
           future: _initializeControllerFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.done) {
@@ -215,7 +237,7 @@ class _CameraScreenState extends State<CameraScreen> {
                         // because camera is landscape but screen is portrait
                         width: _controller.value.previewSize!.height,
                         height: _controller.value.previewSize!.width,
-                        child: _isFrozen
+                        child: _isFrozen || !_controller.value.isInitialized
                             ? GestureDetector(
                                 onTapDown: _handleTap,
                                 behavior: HitTestBehavior.opaque,
