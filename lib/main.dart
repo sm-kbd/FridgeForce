@@ -15,7 +15,7 @@ import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart
 
 final dateRegex = RegExp(
   r'(?:' +
-      r'(?:令和|平成|昭和)? *?(\d{1,4}[-/\.\:年] *?\d{1,2}([-/\.\:月] *?\d{1,2}日?)?)' + // e.g., 2025年7月21日
+      r'((\d{2}|\d{4})[-/\.\:年](\d{1,2})(?:[-/\.\:月](\d{1,2})日?)?)' + // e.g., 2025年7月21日
       r'|' +
       r'(?:\d{8})' + // e.g., 20250721
       r')',
@@ -68,7 +68,6 @@ class _CameraScreenState extends State<CameraScreen> {
 
   Uint8List? _frozenCapture;
   bool _isFrozen = false;
-  late List<Box> _frozenBoxes = [];
 
   @override
   void initState() {
@@ -95,9 +94,6 @@ class _CameraScreenState extends State<CameraScreen> {
   void dispose() {
     _controller.dispose();
     super.dispose();
-    if (_controller.value.isStreamingImages) {
-      _controller.stopImageStream();
-    }
     _textRecognizer.close();
   }
 
@@ -113,46 +109,17 @@ class _CameraScreenState extends State<CameraScreen> {
     try {
       await _controller.stopImageStream();
       await _controller.pausePreview();
+
       final image = await _controller.takePicture();
       final imageFile = File(image.path);
-
-      final Uint8List prepedImage = await prepImage(image.path);
-
-      // not possible to load jpeg bytes into InputImage
-      final tempDir = await getTemporaryDirectory();
-      final file = await File(
-        '${tempDir.path}/frame.jpg',
-      ).writeAsBytes(prepedImage);
-      final inputImage = InputImage.fromFile(file);
-
-      final recognizedText = await _textRecognizer.processImage(inputImage);
-
-      List<Box> boxes = [];
-      for (final block in recognizedText.blocks) {
-        if (isDateTime(block.text)) {
-          boxes.add(Box(block.boundingBox, block.text));
-        }
-      }
-
       final bytes = await imageFile.readAsBytes();
 
-      setState(() {
-        _isFrozen = true;
-        _frozenCapture = bytes;
-        _frozenBoxes = boxes;
-      });
+      _isFrozen = true;
+      _frozenCapture = bytes;
 
-      await file.delete();
       await imageFile.delete();
     } catch (e) {
       devtools.log("Error taking picture: $e", name: "fridgeforce");
-
-      await _controller.resumePreview();
-      startOcrStream();
-      setState(() {
-        _isFrozen = false;
-        _frozenBoxes = [];
-      });
     }
     setState(() => _isCapturing = false);
   }
@@ -160,7 +127,7 @@ class _CameraScreenState extends State<CameraScreen> {
   void _handleTap(TapDownDetails details) {
     final Offset tapPos = details.localPosition;
 
-    for (final box in _frozenBoxes) {
+    for (final box in _boundingBoxes) {
       if (box.rect.contains(tapPos)) {
         print(dateRegex.firstMatch(box.text)?.group(1));
         setState(() => box.isSelected = !box.isSelected);
@@ -222,104 +189,88 @@ class _CameraScreenState extends State<CameraScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: FutureBuilder<void>(
-        future: _initializeControllerFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.done) {
-            return Scaffold(
-              backgroundColor: Colors.black,
-              body: SafeArea(
-                child: Stack(
-                  children: [
-                    Positioned.fill(
-                      child: FittedBox(
-                        fit: BoxFit.contain,
-                        child: SizedBox(
-                          // because camera is landscape but screen is portrait
-                          width: _controller.value.previewSize!.height,
-                          height: _controller.value.previewSize!.width,
-                          child: _isFrozen
-                              ? GestureDetector(
-                                  onTapDown: _handleTap,
-                                  behavior: HitTestBehavior.opaque,
-                                  child: SizedBox.expand(
-                                    child: Image.memory(_frozenCapture!),
-                                  ),
-                                )
-                              : CameraPreview(_controller),
-                        ),
-                      ),
-                    ),
-                    Positioned.fill(
-                      child: IgnorePointer(
-                        child: CustomPaint(
-                          painter: OverlayPainter(
-                            _isFrozen ? _frozenBoxes : _boundingBoxes,
-                            Size(
-                              _controller.value.previewSize!.height,
-                              _controller.value.previewSize!.width,
-                            ),
-                            Size(
-                              MediaQuery.sizeOf(context).width -
-                                  (MediaQuery.of(context).padding.left +
-                                      MediaQuery.of(context).padding.right),
-                              MediaQuery.sizeOf(context).height -
-                                  (MediaQuery.of(context).padding.top +
-                                      MediaQuery.of(context).padding.bottom),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      bottom: MediaQuery.sizeOf(context).height * 0.10,
-                      left: 0,
-                      right: 0,
-                      child: Center(
+      backgroundColor: Colors.black,
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async => await _onCapturePressed(),
+        child: Icon(
+          _isFrozen ? Icons.save : Icons.screenshot_monitor,
+          size: 32,
+        ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      body: SafeArea(
+        child: FutureBuilder<void>(
+          future: _initializeControllerFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.done) {
+              return Stack(
+                children: [
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: FittedBox(
+                      fit: BoxFit.contain,
+                      child: SizedBox(
+                        // because camera is landscape but screen is portrait
+                        width: _controller.value.previewSize!.height,
+                        height: _controller.value.previewSize!.width,
                         child: _isFrozen
-                            ? Row(
-                                children: [
-                                  ElevatedButton(
-                                    onPressed: () async => _onCapturePressed(),
-                                    style: ElevatedButton.styleFrom(
-                                      shape: const CircleBorder(),
-                                      padding: const EdgeInsets.all(20),
-                                    ),
-                                    child: const Icon(Icons.camera, size: 32),
-                                  ),
-                                  ElevatedButton(
-                                    onPressed: () async => _onCapturePressed(),
-                                    style: ElevatedButton.styleFrom(
-                                      shape: const CircleBorder(),
-                                      padding: const EdgeInsets.all(20),
-                                    ),
-                                    child: const Icon(Icons.phone, size: 32),
-                                  ),
-                                ],
+                            ? GestureDetector(
+                                onTapDown: _handleTap,
+                                behavior: HitTestBehavior.opaque,
+                                child: SizedBox.expand(
+                                  child: Image.memory(_frozenCapture!),
+                                ),
                               )
-                            : ElevatedButton(
-                                onPressed: _isCapturing
-                                    ? null
-                                    : () async => _onCapturePressed(),
-                                style: ElevatedButton.styleFrom(
-                                  shape: const CircleBorder(),
-                                  padding: const EdgeInsets.all(20),
-                                ),
-                                child: const Icon(
-                                  Icons.screenshot_monitor,
-                                  size: 32,
-                                ),
-                              ),
+                            : CameraPreview(_controller),
                       ),
                     ),
-                  ],
-                ),
-              ),
-            );
-          } else {
-            return const Center(child: CircularProgressIndicator());
-          }
-        },
+                  ),
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: CustomPaint(
+                        painter: (() {
+                          final previewSize = Size(
+                            _controller.value.previewSize!.height,
+                            _controller.value.previewSize!.width,
+                          );
+                          final screenSize = Size(
+                            MediaQuery.sizeOf(context).width,
+                            MediaQuery.sizeOf(context).height,
+                          );
+                          final scale = min(
+                            screenSize.width / previewSize.width,
+                            screenSize.height / previewSize.height,
+                          );
+
+                          List<Box> boxes = [];
+                          for (final box in _boundingBoxes) {
+                            boxes.add(
+                              Box(
+                                Rect.fromLTWH(
+                                  box.rect.left * scale,
+                                  box.rect.top * scale,
+                                  box.rect.width * scale,
+                                  box.rect.height * scale,
+                                ),
+                                box.text,
+                              ),
+                            );
+                            boxes.last.isSelected = box.isSelected;
+                          }
+                          return OverlayBoxPainter(boxes);
+                        })(),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            } else {
+              return const Center(child: CircularProgressIndicator());
+            }
+          },
+        ),
       ),
     );
   }
@@ -335,12 +286,10 @@ class Box {
   Color get borderColor => isSelected ? Colors.green : Colors.red;
 }
 
-class OverlayPainter extends CustomPainter {
+class OverlayBoxPainter extends CustomPainter {
   final List<Box> boxes;
-  final Size previewSize;
-  final Size screenSize;
 
-  OverlayPainter(this.boxes, this.previewSize, this.screenSize);
+  OverlayBoxPainter(this.boxes);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -348,25 +297,9 @@ class OverlayPainter extends CustomPainter {
       ..strokeWidth = 4
       ..style = PaintingStyle.stroke;
 
-    final scale = min(
-      screenSize.width / previewSize.width,
-      screenSize.height / previewSize.height,
-    );
-
-    // Black bar offsets
-    final double offsetY = (screenSize.height - previewSize.height * scale) / 2;
-    final double offsetX = (screenSize.width - previewSize.width * scale) / 2;
-
     for (final box in boxes) {
       paint.color = box.borderColor;
-      final transformed = Rect.fromLTWH(
-        box.rect.left * scale + offsetX,
-        box.rect.top * scale + offsetY,
-        box.rect.width * scale,
-        box.rect.height * scale,
-      );
-
-      canvas.drawRect(transformed, paint);
+      canvas.drawRect(box.rect, paint);
     }
   }
 
