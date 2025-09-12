@@ -2,13 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'screens/main_screen.dart';
+import 'dart:io';
 
 void main() {
-  // Initialize FFI
-  sqfliteFfiInit();
+  if (Platform.isLinux) {
+    // Initialize FFI
+    sqfliteFfiInit();
 
-  // Set the global factory
-  databaseFactory = databaseFactoryFfi;
+    // Set the global factory
+    databaseFactory = databaseFactoryFfi;
+  }
   runApp(FridgeForce());
 }
 

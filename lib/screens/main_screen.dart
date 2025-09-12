@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../services/database.dart';
+import '../services/database_service.dart';
 import 'home_screen.dart';
 import 'input_screen.dart';
 import 'recipe_screen.dart';

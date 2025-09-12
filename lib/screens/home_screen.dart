@@ -1,18 +1,5 @@
 import 'package:flutter/material.dart';
-
-class Topic {
-  final String topic;
-  final String subtopic;
-  final int count;
-  final String category;
-
-  Topic({
-    required this.topic,
-    required this.subtopic,
-    required this.count,
-    required this.category,
-  });
-}
+import '../services/database_service.dart';
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -20,89 +7,78 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  late Future<List<Topic>> _allTopicsFuture;
-  List<Topic> _displayedTopics = [];
+  late Future<List<FridgeItem>> _allFridgeItemsFuture;
+  List<FridgeItem> _displayedFridgeItems = [];
   final TextEditingController _searchController = TextEditingController();
-  String _selectedCategory = "All";
 
   // Selection state
-  Set<Topic> _selectedTopics = {};
+  Set<FridgeItem> _selectedFridgeItems = {};
   bool _selectionMode = false;
+
+  List<Category> _categories = [];
+  Category? _selectedCategory;
 
   @override
   void initState() {
     super.initState();
-    _allTopicsFuture = _fetchTopicsFromDatabase();
-    _allTopicsFuture.then((topics) {
+
+    _loadCategories();
+
+    _allFridgeItemsFuture = _fetchDatabaseItems();
+    _allFridgeItemsFuture.then((fridgeItems) {
       setState(() {
-        _displayedTopics = _filterAndSortTopics(topics);
+        _displayedFridgeItems = _filterAndSortFridgeItems(fridgeItems);
       });
     });
 
     _searchController.addListener(() {
-      _allTopicsFuture.then((topics) {
+      _allFridgeItemsFuture.then((fridgeItems) {
         setState(() {
-          _displayedTopics = _filterAndSortTopics(topics);
+          _displayedFridgeItems = _filterAndSortFridgeItems(fridgeItems);
         });
       });
     });
   }
 
-  Future<List<Topic>> _fetchTopicsFromDatabase() async {
-    await Future.delayed(const Duration(seconds: 1));
-    return [
-      Topic(topic: "Math", subtopic: "Algebra", count: 12, category: "Science"),
-      Topic(
-        topic: "Physics",
-        subtopic: "Mechanics",
-        count: 8,
-        category: "Science",
-      ),
-      Topic(
-        topic: "Chemistry",
-        subtopic: "Organic",
-        count: 5,
-        category: "Science",
-      ),
-      Topic(
-        topic: "Biology",
-        subtopic: "Genetics",
-        count: 7,
-        category: "Science",
-      ),
-      Topic(topic: "History", subtopic: "Medieval", count: 3, category: "Arts"),
-      Topic(topic: "Art", subtopic: "Painting", count: 6, category: "Arts"),
-    ];
+  Future<void> _loadCategories() async {
+    final cats = await DatabaseService.instance.getCategories();
+    setState(() {
+      _categories = cats;
+      // Optional: select the first category or null
+      _selectedCategory = null;
+    });
   }
 
-  List<Topic> _filterAndSortTopics(List<Topic> topics) {
-    final filteredByCategory = _selectedCategory == "All"
-        ? topics
-        : topics.where((t) => t.category == _selectedCategory).toList();
+  Future<List<FridgeItem>> _fetchDatabaseItems() async {
+    return await DatabaseService.instance.getFridgeItems();
+  }
+
+  List<FridgeItem> _filterAndSortFridgeItems(List<FridgeItem> fridgeItems) {
+    final filteredByCategory = _selectedCategory == null
+        ? fridgeItems
+        : fridgeItems
+              .where((t) => t.categoryName == _selectedCategory)
+              .toList();
 
     final filteredBySearch = filteredByCategory
         .where(
-          (t) =>
-              t.topic.toLowerCase().contains(
-                _searchController.text.toLowerCase(),
-              ) ||
-              t.subtopic.toLowerCase().contains(
-                _searchController.text.toLowerCase(),
-              ),
+          (t) => t.productName.toLowerCase().contains(
+            _searchController.text.toLowerCase(),
+          ),
         )
         .toList();
 
-    filteredBySearch.sort((a, b) => a.count.compareTo(b.count));
+    filteredBySearch.sort((a, b) => a.expiryDate.compareTo(b.expiryDate));
 
     return filteredBySearch;
   }
 
-  void _deleteSelectedTopics() async {
+  void _deleteSelectedFridgeItems() async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text("Delete ${_selectedTopics.length} topic(s)?"),
-        content: Text("Are you sure you want to delete the selected topics?"),
+        title: Text("Delete ${_selectedFridgeItems.length} item(s)?"),
+        content: Text("Are you sure you want to delete the selected item(s)?"),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -118,8 +94,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (confirmed == true) {
       setState(() {
-        _displayedTopics.removeWhere((t) => _selectedTopics.contains(t));
-        _selectedTopics.clear();
+        _displayedFridgeItems.removeWhere(
+          (t) => _selectedFridgeItems.contains(t),
+        );
+        _selectedFridgeItems.clear();
         _selectionMode = false;
       });
     }
@@ -127,7 +105,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _confirmSelection() {
     // Example action
-    print("Confirmed ${_selectedTopics.length} topics");
+    print("Confirmed ${_selectedFridgeItems.length} fridgeItems");
   }
 
   @override
@@ -141,7 +119,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final screenWidth = MediaQuery.of(context).size.width;
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Topics List")),
+      appBar: AppBar(title: const Text("FridgeItems List")),
       body: Column(
         children: [
           // Toolbar row
@@ -149,23 +127,30 @@ class _HomeScreenState extends State<HomeScreen> {
             padding: const EdgeInsets.all(8.0),
             child: Row(
               children: [
-                DropdownButton<String>(
+                DropdownButton<Category?>(
                   value: _selectedCategory,
-                  items: <String>['All', 'Science', 'Arts']
-                      .map(
-                        (value) =>
-                            DropdownMenuItem(value: value, child: Text(value)),
-                      )
-                      .toList(),
+                  hint: const Text("Select category"),
+                  items: [
+                    const DropdownMenuItem<Category?>(
+                      value: null,
+                      child: Text("All"),
+                    ),
+                    ..._categories.map(
+                      (cat) => DropdownMenuItem<Category?>(
+                        value: cat,
+                        child: Text(cat.name),
+                      ),
+                    ),
+                  ],
                   onChanged: (value) {
-                    if (value != null) {
-                      setState(() {
-                        _selectedCategory = value;
-                        _allTopicsFuture.then((topics) {
-                          _displayedTopics = _filterAndSortTopics(topics);
-                        });
+                    setState(() {
+                      _selectedCategory = value;
+                      _allFridgeItemsFuture.then((fridgeItems) {
+                        _displayedFridgeItems = _filterAndSortFridgeItems(
+                          fridgeItems,
+                        );
                       });
-                    }
+                    });
                   },
                 ),
                 const Spacer(),
@@ -195,24 +180,26 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           // List
           Expanded(
-            child: FutureBuilder<List<Topic>>(
-              future: _allTopicsFuture,
+            child: FutureBuilder<List<FridgeItem>>(
+              future: _allFridgeItemsFuture,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 } else if (snapshot.hasError) {
-                  return Center(child: Text("Error loading topics"));
+                  return Center(child: Text("Error loading fridgeItems"));
                 } else {
-                  if (_displayedTopics.isEmpty) {
-                    return const Center(child: Text("No topics found"));
+                  if (_displayedFridgeItems.isEmpty) {
+                    return const Center(child: Text("No fridgeItems found"));
                   }
                   return ListView.separated(
-                    itemCount: _displayedTopics.length,
+                    itemCount: _displayedFridgeItems.length,
                     separatorBuilder: (_, __) =>
                         Divider(color: Colors.grey.shade300, height: 1),
                     itemBuilder: (context, index) {
-                      final topic = _displayedTopics[index];
-                      final isSelected = _selectedTopics.contains(topic);
+                      final fridgeItem = _displayedFridgeItems[index];
+                      final isSelected = _selectedFridgeItems.contains(
+                        fridgeItem,
+                      );
 
                       return ListTile(
                         contentPadding: const EdgeInsets.symmetric(
@@ -220,14 +207,14 @@ class _HomeScreenState extends State<HomeScreen> {
                           vertical: 8,
                         ),
                         title: Text(
-                          topic.topic,
+                          fridgeItem.productName,
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                         subtitle: Text(
-                          topic.subtopic,
+                          fridgeItem.categoryName,
                           style: TextStyle(
                             fontSize: 14,
                             color: Colors.grey.shade600,
@@ -245,10 +232,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                 setState(() {
                                   _selectionMode = true;
                                   if (checked == true) {
-                                    _selectedTopics.add(topic);
+                                    _selectedFridgeItems.add(fridgeItem);
                                   } else {
-                                    _selectedTopics.remove(topic);
-                                    if (_selectedTopics.isEmpty) {
+                                    _selectedFridgeItems.remove(fridgeItem);
+                                    if (_selectedFridgeItems.isEmpty) {
                                       _selectionMode = false;
                                     }
                                   }
@@ -256,7 +243,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               },
                             ),
                             Text(
-                              "You have ${topic.count} remaining",
+                              "You have ${fridgeItem.expiryDate} remaining",
                               style: TextStyle(
                                 fontSize: 10,
                                 color: Colors.grey.shade600,
@@ -269,17 +256,17 @@ class _HomeScreenState extends State<HomeScreen> {
                           if (_selectionMode) {
                             setState(() {
                               if (isSelected) {
-                                _selectedTopics.remove(topic);
-                                if (_selectedTopics.isEmpty) {
+                                _selectedFridgeItems.remove(fridgeItem);
+                                if (_selectedFridgeItems.isEmpty) {
                                   _selectionMode = false;
                                 }
                               } else {
-                                _selectedTopics.add(topic);
+                                _selectedFridgeItems.add(fridgeItem);
                               }
                             });
                           } else {
                             // Normal tap behavior
-                            print("Opening ${topic.topic}");
+                            print("Opening ${fridgeItem.productName}");
                           }
                         },
                       );
@@ -295,17 +282,19 @@ class _HomeScreenState extends State<HomeScreen> {
         mainAxisSize: MainAxisSize.min,
         children: [
           // Delete FAB first
-          if (_selectionMode && _selectedTopics.isNotEmpty)
+          if (_selectionMode && _selectedFridgeItems.isNotEmpty)
             FloatingActionButton(
-              onPressed: _deleteSelectedTopics,
+              onPressed: _deleteSelectedFridgeItems,
               backgroundColor: Color.fromRGBO(228, 0, 80, 1),
               child: const Icon(Icons.delete, color: Colors.white),
             ),
           const SizedBox(height: 12),
           // Confirm FAB below
           FloatingActionButton(
-            onPressed: _selectedTopics.isNotEmpty ? _confirmSelection : null,
-            backgroundColor: _selectedTopics.isNotEmpty
+            onPressed: _selectedFridgeItems.isNotEmpty
+                ? _confirmSelection
+                : null,
+            backgroundColor: _selectedFridgeItems.isNotEmpty
                 ? Color.fromRGBO(112, 176, 228, 1)
                 : Colors.grey.shade400,
             child: const Icon(Icons.check, color: Colors.white),
