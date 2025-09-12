@@ -7,7 +7,7 @@ final String _fridgeTableName = "fridge";
 final String _categoryTableName = "categories";
 
 // Fridge columns
-final String _fridgeId = "id";
+final String _fridgeId = "fid";
 final String _fridgeProductName = "product_name";
 final String _fridgeCategoryId = "category_id";
 final String _fridgeCreationDate = "creation_date";
@@ -16,7 +16,7 @@ final String _fridgeDaysBefore = "days_before";
 final String _fridgeMemo = "memo";
 
 // Category columns
-final String _categoryId = "id";
+final String _categoryId = "cid";
 final String _categoryName = "name";
 final String _categoryColor = "color";
 
@@ -168,7 +168,9 @@ class DatabaseService {
            f.$_fridgeExpiryDate, 
            f.$_fridgeDaysBefore, 
            f.$_fridgeMemo,
-           c.$_categoryName
+           c.$_categoryId,
+           c.$_categoryName,
+           c.$_categoryColor
     FROM $_fridgeTableName f
     INNER JOIN $_categoryTableName c
       ON f.$_fridgeCategoryId = c.$_categoryId
@@ -185,7 +187,7 @@ class FridgeItem {
   final int creationDate; // Unix timestamp (int)
   final int expiryDate;
   final String? memo;
-  final String categoryName; // comes from category table
+  final Category category;
 
   FridgeItem({
     required this.id,
@@ -193,7 +195,7 @@ class FridgeItem {
     required this.creationDate,
     required this.expiryDate,
     this.memo,
-    required this.categoryName,
+    required this.category,
   });
 
   factory FridgeItem.fromMap(Map<String, dynamic> map) {
@@ -203,7 +205,7 @@ class FridgeItem {
       creationDate: map[_fridgeCreationDate] as int,
       expiryDate: map[_fridgeExpiryDate] as int,
       memo: map[_fridgeMemo] as String?,
-      categoryName: map[_categoryName] as String,
+      category: Category.fromMap(map),
     );
   }
 }

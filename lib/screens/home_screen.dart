@@ -57,7 +57,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final filteredByCategory = _selectedCategory == null
         ? fridgeItems
         : fridgeItems
-              .where((t) => t.categoryName == _selectedCategory)
+              .where((item) => item.category.id == _selectedCategory!.id)
               .toList();
 
     final filteredBySearch = filteredByCategory
@@ -94,12 +94,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (confirmed == true) {
       _selectedFridgeItems.forEach(
-        (fridgeItem) async => DatabaseService.instance.removeFridgeItem(fridgeItem.id),
+        (fridgeItem) async =>
+            await DatabaseService.instance.removeFridgeItem(fridgeItem.id),
       );
       _allFridgeItemsFuture = _fetchDatabaseItems();
       _allFridgeItemsFuture.then((fridgeItems) {
         setState(() {
           _displayedFridgeItems = _filterAndSortFridgeItems(fridgeItems);
+          _selectedFridgeItems.clear();
+          _selectionMode = false;
         });
       });
     }
@@ -188,7 +191,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 } else if (snapshot.hasError) {
-                  return Center(child: Text("Error loading fridgeItems"));
+                  return Center(child: Text("Error loading fridge items"));
                 } else {
                   if (_displayedFridgeItems.isEmpty) {
                     return const Center(child: Text("No fridgeItems found"));
@@ -216,7 +219,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                         subtitle: Text(
-                          fridgeItem.categoryName,
+                          fridgeItem.category.name,
                           style: TextStyle(
                             fontSize: 14,
                             color: Colors.grey.shade600,
