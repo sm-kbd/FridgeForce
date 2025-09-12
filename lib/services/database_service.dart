@@ -122,6 +122,11 @@ class DatabaseService {
     });
   }
 
+  Future<void> removeFridgeItem(int id) async {
+    final db = await database;
+    await db.delete(_fridgeTableName, where: '$_fridgeId = ?', whereArgs: [id]);
+  }
+
   Future<int> updateFridgeItem(
     int id, {
     String? productName,
@@ -175,6 +180,7 @@ class DatabaseService {
 }
 
 class FridgeItem {
+  final int id;
   final String productName;
   final int creationDate; // Unix timestamp (int)
   final int expiryDate;
@@ -182,6 +188,7 @@ class FridgeItem {
   final String categoryName; // comes from category table
 
   FridgeItem({
+    required this.id,
     required this.productName,
     required this.creationDate,
     required this.expiryDate,
@@ -191,6 +198,7 @@ class FridgeItem {
 
   factory FridgeItem.fromMap(Map<String, dynamic> map) {
     return FridgeItem(
+      id: map[_fridgeId] as int,
       productName: map[_fridgeProductName] as String,
       creationDate: map[_fridgeCreationDate] as int,
       expiryDate: map[_fridgeExpiryDate] as int,

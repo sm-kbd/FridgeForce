@@ -93,12 +93,14 @@ class _HomeScreenState extends State<HomeScreen> {
     );
 
     if (confirmed == true) {
-      setState(() {
-        _displayedFridgeItems.removeWhere(
-          (t) => _selectedFridgeItems.contains(t),
-        );
-        _selectedFridgeItems.clear();
-        _selectionMode = false;
+      _selectedFridgeItems.forEach(
+        (fridgeItem) async => DatabaseService.instance.removeFridgeItem(fridgeItem.id),
+      );
+      _allFridgeItemsFuture = _fetchDatabaseItems();
+      _allFridgeItemsFuture.then((fridgeItems) {
+        setState(() {
+          _displayedFridgeItems = _filterAndSortFridgeItems(fridgeItems);
+        });
       });
     }
   }

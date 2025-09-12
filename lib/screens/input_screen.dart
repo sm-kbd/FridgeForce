@@ -261,7 +261,9 @@ class _InputScreenState extends State<InputScreen> {
                               .addCategory(name, color);
 
                           setState(() {
-                            _categories.add(Category(id: newId, name: name, color: color));
+                            _categories.add(
+                              Category(id: newId, name: name, color: color),
+                            );
                             _selectedCategoryId = newId;
                             _selectedCategoryColor = Color(
                               _categories
@@ -373,6 +375,14 @@ class _InputScreenState extends State<InputScreen> {
                     ScaffoldMessenger.of(
                       context,
                     ).showSnackBar(const SnackBar(content: Text('保存しました')));
+                    setState(() {
+                      _itemController.clear();
+                      _selectedCategoryId = null;
+                      _registrationDate = DateTime.now();
+                      _afterDate = DateTime.now();
+                      _beforeDaysController.clear();
+                      _memoController.clear();
+                    });
                   },
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
