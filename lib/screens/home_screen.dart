@@ -18,6 +18,8 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Category> _categories = [];
   Category? _selectedCategory;
 
+  final Color _primaryColor = const Color.fromRGBO(112, 176, 228, 1);
+
   @override
   void initState() {
     super.initState();
@@ -77,16 +79,20 @@ class _HomeScreenState extends State<HomeScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text("Delete ${_selectedFridgeItems.length} item(s)?"),
-        content: Text("Are you sure you want to delete the selected item(s)?"),
+        title: Text(
+          "${_selectedFridgeItems.length} 件のアイテムを削除しますか？",
+        ), // "Delete ${_selectedFridgeItems.length} item(s)?"
+        content: Text(
+          "選択したアイテムを削除してもよろしいですか？",
+        ), // "Are you sure you want to delete the selected item(s)?"
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: Text("Cancel"),
+            child: Text("キャンセル"), // "Cancel"
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: Text("Delete", style: TextStyle(color: Colors.red)),
+            child: Text("削除", style: TextStyle(color: Colors.red)), // "Delete"
           ),
         ],
       ),
@@ -124,7 +130,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final screenWidth = MediaQuery.of(context).size.width;
 
     return Scaffold(
-      appBar: AppBar(title: const Text("FridgeItems List")),
+      appBar: AppBar(title: const Text("食材一覧"), backgroundColor: _primaryColor), // "FridgeItems List"
       body: Column(
         children: [
           // Toolbar row
@@ -134,11 +140,11 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 DropdownButton<Category?>(
                   value: _selectedCategory,
-                  hint: const Text("Select category"),
+                  hint: const Text("カテゴリを選択"), // "Select category"
                   items: [
-                    const DropdownMenuItem<Category?>(
+                    DropdownMenuItem<Category?>(
                       value: null,
-                      child: Text("All"),
+                      child: Text("全て"), // "All"
                     ),
                     ..._categories.map(
                       (cat) => DropdownMenuItem<Category?>(
@@ -165,7 +171,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: TextField(
                     controller: _searchController,
                     decoration: InputDecoration(
-                      hintText: "Search...",
+                      hintText: "検索...", // "Search..."
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 16,
                         vertical: 0,
@@ -191,10 +197,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 } else if (snapshot.hasError) {
-                  return Center(child: Text("Error loading fridge items"));
+                  return Center(
+                    child: Text("冷蔵庫アイテムの読み込み中にエラーが発生しました"),
+                  ); // "Error loading fridge items"
                 } else {
                   if (_displayedFridgeItems.isEmpty) {
-                    return const Center(child: Text("No fridgeItems found"));
+                    return const Center(
+                      child: Text("アイテムが見つかりません"),
+                    ); // "No fridgeItems found"
                   }
                   return ListView.separated(
                     itemCount: _displayedFridgeItems.length,
@@ -206,74 +216,96 @@ class _HomeScreenState extends State<HomeScreen> {
                         fridgeItem,
                       );
 
-                      return ListTile(
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        title: Text(
-                          fridgeItem.productName,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        subtitle: Text(
-                          fridgeItem.category.name,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                        trailing: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.end,
+                      return Container(
+                        margin: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
                           children: [
-                            Checkbox(
-                              value: isSelected,
-                              materialTapTargetSize:
-                                  MaterialTapTargetSize.shrinkWrap,
-                              onChanged: (checked) {
-                                setState(() {
-                                  _selectionMode = true;
-                                  if (checked == true) {
-                                    _selectedFridgeItems.add(fridgeItem);
-                                  } else {
-                                    _selectedFridgeItems.remove(fridgeItem);
-                                    if (_selectedFridgeItems.isEmpty) {
-                                      _selectionMode = false;
-                                    }
-                                  }
-                                });
-                              },
+                            // Vertical color strip
+                            Container(
+                              width: 4,
+                              height: 60, // approximate height of your ListTile
+                              color: Color(
+                                fridgeItem.category.color,
+                              ), // choose your color
                             ),
-                            Text(
-                              "You have ${fridgeItem.expiryDate} remaining",
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.grey.shade600,
-                                fontWeight: FontWeight.w500,
+                            const SizedBox(width: 8),
+                            // Expanded ListTile
+                            Expanded(
+                              child: ListTile(
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 8,
+                                ),
+                                title: Text(
+                                  fridgeItem.productName,
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  "メモ： ${fridgeItem.memo ?? ''}",
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                                trailing: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Checkbox(
+                                      value: isSelected,
+                                      materialTapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                      onChanged: (checked) {
+                                        setState(() {
+                                          _selectionMode = true;
+                                          if (checked == true) {
+                                            _selectedFridgeItems.add(
+                                              fridgeItem,
+                                            );
+                                          } else {
+                                            _selectedFridgeItems.remove(
+                                              fridgeItem,
+                                            );
+                                            if (_selectedFridgeItems.isEmpty) {
+                                              _selectionMode = false;
+                                            }
+                                          }
+                                        });
+                                      },
+                                    ),
+                                    Text(
+                                      "残り ${fridgeItem.getDaysRemaining()}日",
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: Colors.grey.shade600,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                onTap: () {
+                                  if (_selectionMode) {
+                                    setState(() {
+                                      if (isSelected) {
+                                        _selectedFridgeItems.remove(fridgeItem);
+                                        if (_selectedFridgeItems.isEmpty) {
+                                          _selectionMode = false;
+                                        }
+                                      } else {
+                                        _selectedFridgeItems.add(fridgeItem);
+                                      }
+                                    });
+                                  } else {
+                                    print("Opening ${fridgeItem.productName}");
+                                  }
+                                },
                               ),
                             ),
                           ],
                         ),
-                        onTap: () {
-                          if (_selectionMode) {
-                            setState(() {
-                              if (isSelected) {
-                                _selectedFridgeItems.remove(fridgeItem);
-                                if (_selectedFridgeItems.isEmpty) {
-                                  _selectionMode = false;
-                                }
-                              } else {
-                                _selectedFridgeItems.add(fridgeItem);
-                              }
-                            });
-                          } else {
-                            // Normal tap behavior
-                            print("Opening ${fridgeItem.productName}");
-                          }
-                        },
                       );
                     },
                   );
@@ -302,7 +334,7 @@ class _HomeScreenState extends State<HomeScreen> {
             backgroundColor: _selectedFridgeItems.isNotEmpty
                 ? Color.fromRGBO(112, 176, 228, 1)
                 : Colors.grey.shade400,
-            child: const Icon(Icons.check, color: Colors.white),
+            child: const Icon(Icons.assignment_rounded, color: Colors.white),
           ),
         ],
       ),

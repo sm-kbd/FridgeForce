@@ -1,4 +1,12 @@
 move all the data to input view
 
 adapt to iOS:
-    google_mlkit_text_recognition
+    You must request notification permissions. Add this to your Info.plist:
+        <key>UIBackgroundModes</key>
+        <array>
+            <string>fetch</string>
+            <string>remote-notification</string>
+        </array>
+
+        <key>NSUserNotificationUsageDescription</key>
+        <string>We use notifications to remind you before your food expires.</string>

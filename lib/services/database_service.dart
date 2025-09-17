@@ -208,6 +208,11 @@ class FridgeItem {
       category: Category.fromMap(map),
     );
   }
+
+  int getDaysRemaining() {
+    final expiryDateTime = DateTime.fromMillisecondsSinceEpoch(this.expiryDate);
+    return expiryDateTime.difference(DateTime.now()).inDays;
+  }
 }
 
 class Category {
