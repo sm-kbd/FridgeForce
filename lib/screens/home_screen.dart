@@ -130,7 +130,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final screenWidth = MediaQuery.of(context).size.width;
 
     return Scaffold(
-      appBar: AppBar(title: const Text("食材一覧"), backgroundColor: _primaryColor), // "FridgeItems List"
+      appBar: AppBar(title: const Text("食材一覧")), // "FridgeItems List"
       body: Column(
         children: [
           // Toolbar row

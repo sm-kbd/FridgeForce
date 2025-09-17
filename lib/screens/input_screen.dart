@@ -145,7 +145,7 @@ class _InputScreenState extends State<InputScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('入力画面'), backgroundColor: _primaryColor),
+      appBar: AppBar(title: const Text('入力画面')),
       body: Stack(
         children: [
           SingleChildScrollView(
@@ -445,12 +445,26 @@ class _InputScreenState extends State<InputScreen> {
                         ScaffoldMessenger.of(
                           context,
                         ).showSnackBar(const SnackBar(content: Text('保存しました')));
-                        scheduleExpiryNotification(
-                          _afterDate,
-                          _itemController.text,
-                          daysBefore,
+                        NotificationService().scheduleNotification(
+                          id: DateTime.now().millisecondsSinceEpoch.remainder(
+                            2147483647,
+                          ),
+                          title: "食品の賞味期限が近づいています",
+                          body: "${_itemController.text}の賞味期限が近づいています",
+                          daysLater: _afterDate
+                              .subtract(Duration(days: daysBefore))
+                              .difference(DateTime.now())
+                              .inDays,
+                          payload: "idk",
                         );
-                        showNotification();
+                        NotificationService().showNotification(
+                          id: DateTime.now().millisecondsSinceEpoch.remainder(
+                            2147483647,
+                          ),
+                          title: "食品の賞味期限が近づいています",
+                          body: "${_itemController.text}の賞味期限が近づいています",
+                          payload: "idk",
+                        );
                         setState(() {
                           _itemController.clear();
                           _selectedCategoryId = null;
