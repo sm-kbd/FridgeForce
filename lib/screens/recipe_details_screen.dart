@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
+const IP_ADDRESS = "http://192.168.29.57:8000/";
+
 class RecipeDetailsScreen extends StatefulWidget {
   final String idMeal;
   const RecipeDetailsScreen({required this.idMeal, Key? key}) : super(key: key);
@@ -22,7 +24,7 @@ class _RecipeDetailsScreenState extends State<RecipeDetailsScreen> {
   }
 
   Future<void> _fetchMealDetails() async {
-    final uri = Uri.parse("http://192.168.30.73:8000/details/${widget.idMeal}");
+    final uri = Uri.parse("${IP_ADDRESS}details/${widget.idMeal}");
     try {
       final response = await http.get(uri);
       if (response.statusCode == 200) {

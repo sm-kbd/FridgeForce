@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../services/database_service.dart';
 
+import 'recipe_screen.dart';
+
 class HomeScreen extends StatefulWidget {
   @override
   _HomeScreenState createState() => _HomeScreenState();
@@ -112,11 +114,6 @@ class _HomeScreenState extends State<HomeScreen> {
         });
       });
     }
-  }
-
-  void _confirmSelection() {
-    // Example action
-    print("Confirmed ${_selectedFridgeItems.length} fridgeItems");
   }
 
   @override
@@ -326,10 +323,20 @@ class _HomeScreenState extends State<HomeScreen> {
               child: const Icon(Icons.delete, color: Colors.white),
             ),
           const SizedBox(height: 12),
-          // Confirm FAB below
           FloatingActionButton(
             onPressed: _selectedFridgeItems.isNotEmpty
-                ? _confirmSelection
+                ? () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => RecipeScreen(
+                          ingredients: _selectedFridgeItems
+                              .map((item) => item.productName)
+                              .toList(),
+                        ),
+                      ),
+                    );
+                  }
                 : null,
             backgroundColor: _selectedFridgeItems.isNotEmpty
                 ? Color.fromRGBO(112, 176, 228, 1)

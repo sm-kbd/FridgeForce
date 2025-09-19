@@ -108,7 +108,7 @@ class _CameraScreenState extends State<CameraScreen> {
         );
       }
     }
-    print("$dates");
+    Navigator.pop(context, dates);
   }
 
   Future<void> _onCapturePressed() async {
@@ -146,7 +146,6 @@ class _CameraScreenState extends State<CameraScreen> {
 
     for (final box in _boundingBoxes) {
       if (box.rect.contains(tapPos)) {
-        print(dateRegex.firstMatch(box.text)?.group(1));
         setState(() => box.isSelected = !box.isSelected);
         break;
       }
@@ -371,12 +370,6 @@ bool isDateTime(String s) {
   String yearStr = match.group(2)!;
   int year = int.parse(yearStr.length < 4 ? "20$yearStr" : yearStr);
   if (year < now.year || year > now.year + 5) return false;
-
-  print("match0 ${match.group(0)}");
-  print("match1 ${match.group(1)}");
-  print("match2 ${match.group(2)}");
-  print("match3 ${match.group(3)}");
-  print("match4 ${match.group(4)}");
 
   int month = match.group(3) == null ? 12 : int.parse(match.group(3)!);
   int day = match.group(4) == null ? 31 : int.parse(match.group(4)!);

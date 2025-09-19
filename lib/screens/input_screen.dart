@@ -511,10 +511,13 @@ class _InputScreenState extends State<InputScreen> {
         ],
       ),
       floatingActionButton: ElevatedButton(
-        onPressed: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const CameraScreen()),
-        ),
+        onPressed: () async {
+          final dates = await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const CameraScreen()),
+          );
+          setState(() => _afterDate = dates[0]);
+        },
         style: ElevatedButton.styleFrom(
           shape: const CircleBorder(),
           backgroundColor: _primaryColor,

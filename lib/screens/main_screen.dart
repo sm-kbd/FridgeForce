@@ -17,7 +17,7 @@ class _MainScreenState extends State<MainScreen> {
   static List<Widget> _widgetOptions = <Widget>[
     HomeScreen(),
     InputScreen(),
-    RecipeScreen(),
+    RecipeScreen(ingredients: []),
   ];
 
   @override
