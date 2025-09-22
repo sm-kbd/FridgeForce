@@ -1,12 +1,3 @@
-move all the data to input view
-
-adapt to iOS:
-    You must request notification permissions. Add this to your Info.plist:
-        <key>UIBackgroundModes</key>
-        <array>
-            <string>fetch</string>
-            <string>remote-notification</string>
-        </array>
-
-        <key>NSUserNotificationUsageDescription</key>
-        <string>We use notifications to remind you before your food expires.</string>
+get an actual server
+first release without any payment, pray it doesn't get a lot of users
+second release ig with some kind of simple payment method
