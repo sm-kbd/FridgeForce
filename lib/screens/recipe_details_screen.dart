@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
-const IP_ADDRESS = "http://192.168.29.57:8000/";
+const IP_ADDRESS = "http://nekopas.local:8000/";
 
 class RecipeDetailsScreen extends StatefulWidget {
   final String idMeal;
@@ -134,6 +134,48 @@ class _RecipeDetailsScreenState extends State<RecipeDetailsScreen> {
                     Text(
                       _meal?['strInstructions'] ?? "",
                       style: const TextStyle(fontSize: 16, height: 1.6),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // 作り方
+                    const Text(
+                      "足りない食材を購入",
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Text(
+                      "デモリンク",
+                      style: const TextStyle(
+                        color: Colors.blue,
+                        decoration: TextDecoration.underline,
+                        fontSize: 20,
+                      ),
+                    ),
+                    const Text(
+                      "デモリンク",
+                      style: const TextStyle(
+                        color: Colors.blue,
+                        decoration: TextDecoration.underline,
+                        fontSize: 20,
+                      ),
+                    ),
+                    const Text(
+                      "デモリンク",
+                      style: const TextStyle(
+                        color: Colors.blue,
+                        decoration: TextDecoration.underline,
+                        fontSize: 20,
+                      ),
+                    ),
+                    const Text(
+                      "デモリンク",
+                      style: const TextStyle(
+                        color: Colors.blue,
+                        decoration: TextDecoration.underline,
+                        fontSize: 20,
+                      ),
                     ),
                   ],
                 ),
