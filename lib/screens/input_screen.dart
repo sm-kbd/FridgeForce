@@ -154,22 +154,53 @@ class _InputScreenState extends State<InputScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 SizedBox(height: 20),
-                Center(
-                  child: SizedBox(
-                    height: 50, // 高さを固定
-                    width: 300,
-                    child: TextFormField(
-                      controller: _itemController,
-                      decoration: InputDecoration(
-                        hintText: '品目名',
-                        border: const OutlineInputBorder(),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 18,
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _itemController,
+                        onChanged: (_) => setState(() {}),
+                        decoration: InputDecoration(
+                          hintText: '品目名',
+                          border: const OutlineInputBorder(),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 18,
+                          ),
                         ),
                       ),
                     ),
-                  ),
+                    const SizedBox(width: 16),
+                    OutlinedButton(
+                      onPressed: _itemController.text.trim().isEmpty
+                          ? null
+                          : () async {
+                              final expDate = await DatabaseService.instance
+                                  .getDefaultExpDates(
+                                    _itemController.text.trim(),
+                                  );
+                              if (expDate != null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text("デフォルト値見つかりました")),
+                                );
+                                setState(
+                                  () => _afterDate = _registrationDate.add(
+                                    Duration(days: expDate),
+                                  ),
+                                );
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text("デフォルト値見つかりませんでした")),
+                                );
+                              }
+                            },
+                      child: Text("デフォルト"),
+                      style: OutlinedButton.styleFrom(
+                        backgroundColor: _primaryColor,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ],
                 ),
 
                 const SizedBox(height: 8),
@@ -488,26 +519,6 @@ class _InputScreenState extends State<InputScreen> {
               ],
             ),
           ),
-          // カメラボタンを上真ん中に
-          // Positioned(
-          //   top: 16,
-          //   left: 0,
-          //   right: 0,
-          //   child: Center(
-          //     child: ElevatedButton(
-          //       onPressed: () => Navigator.push(
-          //         context,
-          //         MaterialPageRoute(builder: (context) => const CameraScreen()),
-          //       ),
-          //       style: ElevatedButton.styleFrom(
-          //         shape: const CircleBorder(),
-          //         backgroundColor: _primaryColor,
-          //         padding: const EdgeInsets.all(16),
-          //       ),
-          //       child: const Icon(Icons.camera_alt, color: Colors.white),
-          //     ),
-          //   ),
-          // ),
         ],
       ),
       floatingActionButton: ElevatedButton(
