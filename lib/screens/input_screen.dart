@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:intl/intl.dart';
 import 'camera_screen.dart';
+import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import '../services/database_service.dart';
 import '../services/notification.dart';
 
@@ -488,42 +489,33 @@ class _InputScreenState extends State<InputScreen> {
               ],
             ),
           ),
-          // カメラボタンを上真ん中に
-          // Positioned(
-          //   top: 16,
-          //   left: 0,
-          //   right: 0,
-          //   child: Center(
-          //     child: ElevatedButton(
-          //       onPressed: () => Navigator.push(
-          //         context,
-          //         MaterialPageRoute(builder: (context) => const CameraScreen()),
-          //       ),
-          //       style: ElevatedButton.styleFrom(
-          //         shape: const CircleBorder(),
-          //         backgroundColor: _primaryColor,
-          //         padding: const EdgeInsets.all(16),
-          //       ),
-          //       child: const Icon(Icons.camera_alt, color: Colors.white),
-          //     ),
-          //   ),
-          // ),
         ],
       ),
-      floatingActionButton: ElevatedButton(
-        onPressed: () async {
-          final dates = await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const CameraScreen()),
-          );
-          setState(() => _afterDate = dates[0]);
-        },
-        style: ElevatedButton.styleFrom(
-          shape: const CircleBorder(),
-          backgroundColor: _primaryColor,
-          padding: const EdgeInsets.all(25),
-        ),
-        child: const Icon(Icons.camera_alt, color: Colors.white, size: 25),
+      floatingActionButton: SpeedDial(
+        icon: Icons.camera_alt,
+        activeIcon: Icons.close,
+        foregroundColor: Colors.white,
+        backgroundColor: _primaryColor,
+        iconTheme: IconThemeData(size: 25),
+
+        children: [
+          SpeedDialChild(
+            child: Icon(Icons.center_focus_strong_outlined),
+            label: '画像認識',
+            onTap: () => print('Edit tapped'),
+          ),
+          SpeedDialChild(
+            child: Icon(Icons.document_scanner),
+            label: '消費期限',
+            onTap: () async {
+              final dates = await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const CameraScreen()),
+              );
+              setState(() => _afterDate = dates[0]);
+            },
+          ),
+        ],
       ),
     );
   }

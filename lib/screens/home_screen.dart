@@ -195,7 +195,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   return const Center(child: CircularProgressIndicator());
                 } else if (snapshot.hasError) {
                   return Center(
-                    child: Text("冷蔵庫アイテムの読み込み中にエラーが発生しました"),
+                    child: Text("アイテムの読み込み中にエラーが発生しました"),
                   ); // "Error loading fridge items"
                 } else {
                   if (_displayedFridgeItems.isEmpty) {
@@ -213,6 +213,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         fridgeItem,
                       );
 
+                      final daysRemaining = fridgeItem.getDaysRemaining();
                       return Container(
                         margin: const EdgeInsets.symmetric(vertical: 4),
                         child: Row(
@@ -273,14 +274,32 @@ class _HomeScreenState extends State<HomeScreen> {
                                         });
                                       },
                                     ),
-                                    Text(
-                                      "残り ${fridgeItem.getDaysRemaining()}日",
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        color: Colors.grey.shade600,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
+                                    daysRemaining > 0
+                                        ? Text(
+                                            "残り ${fridgeItem.getDaysRemaining()}日",
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              color: Colors.grey.shade600,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          )
+                                        : daysRemaining == 0
+                                        ? Text(
+                                            "本日消費期限が切れます",
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              color: Colors.yellow.shade600,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          )
+                                        : Text(
+                                            "消費期限切れています",
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              color: Colors.red.shade600,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
                                   ],
                                 ),
                                 onTap: () {

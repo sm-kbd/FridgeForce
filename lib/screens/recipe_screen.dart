@@ -1,10 +1,11 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 import 'recipe_details_screen.dart';
 
-const IP_ADDRESS = "http://192.168.29.57:8000/";
+const IP_ADDRESS = "http://nekopas.local:8000/";
 
 class RecipeScreen extends StatefulWidget {
   final List<String> ingredients;
@@ -16,7 +17,7 @@ class RecipeScreen extends StatefulWidget {
 }
 
 class _RecipeScreenState extends State<RecipeScreen> {
-  List<Map<String, dynamic>> _meals = [];
+  List<Map<String, String>> _meals = [];
   bool _loading = true;
 
   @override
@@ -39,9 +40,11 @@ class _RecipeScreenState extends State<RecipeScreen> {
       final response = await request.send();
       if (response.statusCode == 200) {
         final body = await response.stream.bytesToString();
-        final List<dynamic> data = jsonDecode(body);
+        final data = jsonDecode(body);
         setState(() {
-          _meals = data.cast<Map<String, dynamic>>();
+          _meals = (data as List)
+              .map((item) => Map<String, String>.from(item))
+              .toList();
           _loading = false;
         });
       } else {
@@ -65,84 +68,86 @@ class _RecipeScreenState extends State<RecipeScreen> {
                   : _meals.isEmpty
                   ? Center(child: Text("該当する料理は見つかりませんでした"))
                   : ListView.builder(
-                      padding: const EdgeInsets.all(12),
                       itemCount: _meals.length,
                       itemBuilder: (context, index) {
-                        final meal = _meals[index];
+                        final item = _meals[index];
+                        final name = item['name'] ?? 'Unknown';
+                        final description = item['description'] ?? '';
+                        final imageUrl = IP_ADDRESS + "thumbs/" + name;
+
                         return Card(
-                          margin: const EdgeInsets.symmetric(vertical: 8),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                          elevation: 4,
+                          elevation: 3,
+                          margin: const EdgeInsets.symmetric(
+                            vertical: 8.0,
+                            horizontal: 12.0,
+                          ),
                           child: InkWell(
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(12),
                             onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => RecipeDetailsScreen(
-                                    idMeal: meal['idMeal'].toString(),
-                                  ),
-                                ),
-                              );
+                              // Optional: Navigate to details
                             },
-                            child: Row(
-                              children: [
-                                Hero(
-                                  tag: meal['idMeal'],
-                                  child: ClipRRect(
-                                    borderRadius: const BorderRadius.only(
-                                      topLeft: Radius.circular(16),
-                                      bottomLeft: Radius.circular(16),
-                                    ),
-                                    child: Image.network(
-                                      meal['strMealThumb'],
-                                      width: 120,
-                                      height: 100,
-                                      fit: BoxFit.cover,
-                                    ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(12.0),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: imageUrl.isNotEmpty
+                                        ? Image.network(
+                                            imageUrl,
+                                            width: 90,
+                                            height: 90,
+                                            fit: BoxFit.cover,
+                                          )
+                                        : Container(
+                                            width: 90,
+                                            height: 90,
+                                            color: Colors.grey[300],
+                                            child: const Icon(
+                                              Icons.fastfood,
+                                              size: 40,
+                                            ),
+                                          ),
                                   ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 12,
-                                      horizontal: 4,
-                                    ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
                                     child: Column(
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          meal['strMeal'],
+                                          name,
                                           style: const TextStyle(
-                                            fontSize: 18,
+                                            fontSize: 16,
                                             fontWeight: FontWeight.bold,
                                           ),
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
                                         ),
-                                        const SizedBox(height: 8),
-                                        Row(
-                                          children: const [
-                                            Icon(Icons.touch_app, size: 14),
-                                            SizedBox(width: 4),
-                                            Text(
-                                              "タップして詳細を見る",
-                                              style: TextStyle(
-                                                fontSize: 13,
-                                                color: Colors.grey,
-                                              ),
-                                            ),
-                                          ],
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          description,
+                                          style: const TextStyle(
+                                            fontSize: 13,
+                                            color: Colors.black54,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        const Text(
+                                          "タップして詳細を見る",
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.blueGrey,
+                                            fontStyle: FontStyle.italic,
+                                          ),
                                         ),
                                       ],
                                     ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
                         );
