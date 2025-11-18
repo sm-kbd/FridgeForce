@@ -7,6 +7,17 @@ import 'recipe_details_screen.dart';
 
 const IP_ADDRESS = "http://nekopas.local:8000/";
 
+class Ingredient {
+  final String item;
+  final String quantity;
+
+  Ingredient({required this.item, required this.quantity});
+
+  factory Ingredient.fromJson(Map<String, dynamic> json) {
+    return Ingredient(item: json['item'], quantity: json['quantity']);
+  }
+}
+
 class RecipeScreen extends StatefulWidget {
   final List<String> ingredients;
   const RecipeScreen({required List<String> this.ingredients, Key? key})
@@ -73,7 +84,7 @@ class _RecipeScreenState extends State<RecipeScreen> {
                         final item = _meals[index];
                         final name = item['name'] ?? 'Unknown';
                         final description = item['description'] ?? '';
-                        final imageUrl = IP_ADDRESS + "thumbs/" + name;
+                        final imageUrl = '';
 
                         return Card(
                           shape: RoundedRectangleBorder(
@@ -87,7 +98,13 @@ class _RecipeScreenState extends State<RecipeScreen> {
                           child: InkWell(
                             borderRadius: BorderRadius.circular(12),
                             onTap: () {
-                              // Optional: Navigate to details
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      RecipeDetailsScreen(recipeName: name),
+                                ),
+                              );
                             },
                             child: Padding(
                               padding: const EdgeInsets.all(12.0),

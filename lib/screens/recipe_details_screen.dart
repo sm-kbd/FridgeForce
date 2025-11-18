@@ -5,8 +5,9 @@ import 'package:http/http.dart' as http;
 const IP_ADDRESS = "http://nekopas.local:8000/";
 
 class RecipeDetailsScreen extends StatefulWidget {
-  final String idMeal;
-  const RecipeDetailsScreen({required this.idMeal, Key? key}) : super(key: key);
+  final String recipeName;
+  const RecipeDetailsScreen({required this.recipeName, Key? key})
+    : super(key: key);
 
   @override
   _RecipeDetailsScreenState createState() => _RecipeDetailsScreenState();
@@ -24,7 +25,7 @@ class _RecipeDetailsScreenState extends State<RecipeDetailsScreen> {
   }
 
   Future<void> _fetchMealDetails() async {
-    final uri = Uri.parse("${IP_ADDRESS}details/${widget.idMeal}");
+    final uri = Uri.parse("${IP_ADDRESS}details/${widget.recipeName}");
     try {
       final response = await http.get(uri);
       if (response.statusCode == 200) {
@@ -67,40 +68,47 @@ class _RecipeDetailsScreenState extends State<RecipeDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(_meal?['strMeal'] ?? "レシピ詳細")),
+      appBar: AppBar(title: Text(_meal?['recipeName'] ?? widget.recipeName)),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
           ? Center(child: Text(_error!))
           : SafeArea(
-              // ✅ prevents overlap with phone bottom buttons
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 料理画像
-                    if (_meal?['strMealThumb'] != null)
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.network(
-                          _meal!['strMealThumb'],
-                          width: double.infinity,
-                          height: 220,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    const SizedBox(height: 20),
-
                     // タイトル
                     Text(
-                      _meal?['strMeal'] ?? "",
+                      _meal?['recipeName'] ?? "",
                       style: const TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     const SizedBox(height: 20),
+
+                    // 説明
+                    if (_meal?['description'] != null)
+                      Text(
+                        _meal!['description'],
+                        style: const TextStyle(fontSize: 16, height: 1.5),
+                      ),
+                    const SizedBox(height: 20),
+
+                    // 調理時間
+                    if (_meal?['prepTime'] != null)
+                      Text(
+                        "準備時間: ${_meal!['prepTime']}",
+                        style: const TextStyle(fontSize: 18),
+                      ),
+                    if (_meal?['coolTime'] != null)
+                      Text(
+                        "冷却時間: ${_meal!['coolTime']}",
+                        style: const TextStyle(fontSize: 18),
+                      ),
+                    const SizedBox(height: 24),
 
                     // 材料
                     const Text(
@@ -111,15 +119,17 @@ class _RecipeDetailsScreenState extends State<RecipeDetailsScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    ..._getIngredients(_meal!).map(
+
+                    ...(_meal?['ingredients'] as List<dynamic>).map(
                       (ing) => Padding(
                         padding: const EdgeInsets.symmetric(vertical: 2),
                         child: Text(
-                          "・$ing",
+                          "・${ing['item']}：${ing['quantity']}",
                           style: const TextStyle(fontSize: 16),
                         ),
                       ),
                     ),
+
                     const SizedBox(height: 24),
 
                     // 作り方
@@ -132,12 +142,12 @@ class _RecipeDetailsScreenState extends State<RecipeDetailsScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      _meal?['strInstructions'] ?? "",
+                      _meal?['instructions'] ?? "",
                       style: const TextStyle(fontSize: 16, height: 1.6),
                     ),
                     const SizedBox(height: 24),
 
-                    // 作り方
+                    // 足りない食材リンク（デモ）
                     const Text(
                       "足りない食材を購入",
                       style: TextStyle(
@@ -145,9 +155,12 @@ class _RecipeDetailsScreenState extends State<RecipeDetailsScreen> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
+
+                    const SizedBox(height: 8),
+
                     const Text(
                       "デモリンク",
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Colors.blue,
                         decoration: TextDecoration.underline,
                         fontSize: 20,
@@ -155,7 +168,7 @@ class _RecipeDetailsScreenState extends State<RecipeDetailsScreen> {
                     ),
                     const Text(
                       "デモリンク",
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Colors.blue,
                         decoration: TextDecoration.underline,
                         fontSize: 20,
@@ -163,7 +176,7 @@ class _RecipeDetailsScreenState extends State<RecipeDetailsScreen> {
                     ),
                     const Text(
                       "デモリンク",
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Colors.blue,
                         decoration: TextDecoration.underline,
                         fontSize: 20,
@@ -171,7 +184,7 @@ class _RecipeDetailsScreenState extends State<RecipeDetailsScreen> {
                     ),
                     const Text(
                       "デモリンク",
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Colors.blue,
                         decoration: TextDecoration.underline,
                         fontSize: 20,
