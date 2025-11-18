@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 // Table names
 final String _fridgeTableName = "fridge";
 final String _categoryTableName = "categories";
+final String _expDatesTableName = "defaultExpDates";
 
 // Fridge columns
 final String _fridgeId = "fid";
@@ -19,6 +20,11 @@ final String _fridgeMemo = "memo";
 final String _categoryId = "cid";
 final String _categoryName = "name";
 final String _categoryColor = "color";
+
+// Exp date columns
+final String _expDateId = "eid";
+final String _expDateProductName = "name";
+final String _expDateNumDays = "days";
 
 class DatabaseService {
   static Database? _db;
@@ -41,29 +47,40 @@ class DatabaseService {
       onCreate: (db, version) async {
         // Create category table
         await db.execute('''
-          CREATE TABLE $_categoryTableName (
-            $_categoryId INTEGER PRIMARY KEY AUTOINCREMENT,
-            $_categoryName TEXT NOT NULL UNIQUE,
-            $_categoryColor INTEGER NOT NULL
-          )
-        ''');
+                        CREATE TABLE $_categoryTableName (
+                            $_categoryId INTEGER PRIMARY KEY AUTOINCREMENT,
+                            $_categoryName TEXT NOT NULL UNIQUE,
+                            $_categoryColor INTEGER NOT NULL
+                            )
+                        ''');
 
         // Insert default categories
         await _insertDefaultCategories(db);
 
         // Create fridge table
         await db.execute('''
-          CREATE TABLE $_fridgeTableName (
-            $_fridgeId INTEGER PRIMARY KEY AUTOINCREMENT,
-            $_fridgeProductName TEXT NOT NULL,
-            $_fridgeCategoryId INTEGER NOT NULL,
-            $_fridgeCreationDate INTEGER NOT NULL,
-            $_fridgeExpiryDate INTEGER NOT NULL,
-            $_fridgeDaysBefore INTEGER NOT NULL,
-            $_fridgeMemo TEXT,
-            FOREIGN KEY ($_fridgeCategoryId) REFERENCES $_categoryTableName($_categoryId)
-          )
-        ''');
+                        CREATE TABLE $_fridgeTableName (
+                            $_fridgeId INTEGER PRIMARY KEY AUTOINCREMENT,
+                            $_fridgeProductName TEXT NOT NULL,
+                            $_fridgeCategoryId INTEGER NOT NULL,
+                            $_fridgeCreationDate INTEGER NOT NULL,
+                            $_fridgeExpiryDate INTEGER NOT NULL,
+                            $_fridgeDaysBefore INTEGER NOT NULL,
+                            $_fridgeMemo TEXT,
+                            FOREIGN KEY ($_fridgeCategoryId) REFERENCES $_categoryTableName($_categoryId)
+                            )
+                        ''');
+
+        await db.execute('''
+                        CREATE TABLE $_expDatesTableName (
+                            $_expDateId INTEGER PRIMARY KEY AUTOINCREMENT,
+                            $_expDateProductName TEXT NOT NULL,
+                            $_expDateNumDays INTEGER NOT NULL
+                            )
+                        ''');
+
+        // insert default expirt dates
+        await _insertDefaultExpDates(db);
       },
     );
   }
@@ -85,6 +102,33 @@ class DatabaseService {
     for (var category in defaultCategories) {
       await db.insert(_categoryTableName, category);
     }
+  }
+
+  Future<void> _insertDefaultExpDates(Database db) async {
+    // Example default categories with colors (ARGB)
+    final defaultExpDates = [
+      {'name': 'にんじん', 'days': 2},
+      {'name': '玉ねぎ', 'days': 6},
+      {'name': '豚肉', 'days': 9},
+      {'name': 'パン', 'days': 2},
+      {'name': 'ピーナッツ', 'days': 4},
+      {'name': 'キャベツ', 'days': 7},
+    ];
+
+    for (var expDate in defaultExpDates) {
+      await db.insert(_expDatesTableName, expDate);
+    }
+  }
+
+  Future<int?> getDefaultExpDates(String name) async {
+    final db = await database;
+    final result = await db.query(
+      _expDatesTableName,
+      where: 'name = ?',
+      whereArgs: [name],
+    );
+    if (result.isEmpty) return null;
+    return result.first['days'] as int;
   }
 
   // Category methods
@@ -161,21 +205,21 @@ class DatabaseService {
   Future<List<FridgeItem>> getFridgeItems() async {
     final db = await database;
     final List<Map<String, dynamic>> maps = await db.rawQuery('''
-    SELECT f.$_fridgeId, 
-           f.$_fridgeProductName, 
-           f.$_fridgeCategoryId, 
-           f.$_fridgeCreationDate, 
-           f.$_fridgeExpiryDate, 
-           f.$_fridgeDaysBefore, 
-           f.$_fridgeMemo,
-           c.$_categoryId,
-           c.$_categoryName,
-           c.$_categoryColor
-    FROM $_fridgeTableName f
-    INNER JOIN $_categoryTableName c
-      ON f.$_fridgeCategoryId = c.$_categoryId
-    ORDER BY f.$_fridgeExpiryDate ASC
-  ''');
+            SELECT f.$_fridgeId, 
+            f.$_fridgeProductName, 
+            f.$_fridgeCategoryId, 
+            f.$_fridgeCreationDate, 
+            f.$_fridgeExpiryDate, 
+            f.$_fridgeDaysBefore, 
+            f.$_fridgeMemo,
+            c.$_categoryId,
+            c.$_categoryName,
+            c.$_categoryColor
+            FROM $_fridgeTableName f
+            INNER JOIN $_categoryTableName c
+            ON f.$_fridgeCategoryId = c.$_categoryId
+            ORDER BY f.$_fridgeExpiryDate ASC
+            ''');
 
     return maps.map((map) => FridgeItem.fromMap(map)).toList();
   }

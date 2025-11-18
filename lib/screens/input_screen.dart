@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:intl/intl.dart';
 import 'camera_screen.dart';
-import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import '../services/database_service.dart';
 import '../services/notification.dart';
+import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 
 class InputScreen extends StatefulWidget {
   const InputScreen({Key? key}) : super(key: key);
@@ -155,22 +155,53 @@ class _InputScreenState extends State<InputScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 SizedBox(height: 20),
-                Center(
-                  child: SizedBox(
-                    height: 50, // 高さを固定
-                    width: 300,
-                    child: TextFormField(
-                      controller: _itemController,
-                      decoration: InputDecoration(
-                        hintText: '品目名',
-                        border: const OutlineInputBorder(),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 18,
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _itemController,
+                        onChanged: (_) => setState(() {}),
+                        decoration: InputDecoration(
+                          hintText: '品目名',
+                          border: const OutlineInputBorder(),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 18,
+                          ),
                         ),
                       ),
                     ),
-                  ),
+                    const SizedBox(width: 16),
+                    OutlinedButton(
+                      onPressed: _itemController.text.trim().isEmpty
+                          ? null
+                          : () async {
+                              final expDate = await DatabaseService.instance
+                                  .getDefaultExpDates(
+                                    _itemController.text.trim(),
+                                  );
+                              if (expDate != null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text("デフォルト値見つかりました")),
+                                );
+                                setState(
+                                  () => _afterDate = _registrationDate.add(
+                                    Duration(days: expDate),
+                                  ),
+                                );
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text("デフォルト値見つかりませんでした")),
+                                );
+                              }
+                            },
+                      child: Text("デフォルト"),
+                      style: OutlinedButton.styleFrom(
+                        backgroundColor: _primaryColor,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ],
                 ),
 
                 const SizedBox(height: 8),
@@ -491,31 +522,32 @@ class _InputScreenState extends State<InputScreen> {
           ),
         ],
       ),
-      floatingActionButton: SpeedDial(
-        icon: Icons.camera_alt,
-        activeIcon: Icons.close,
-        foregroundColor: Colors.white,
-        backgroundColor: _primaryColor,
-        iconTheme: IconThemeData(size: 25),
-
-        children: [
-          SpeedDialChild(
-            child: Icon(Icons.center_focus_strong_outlined),
-            label: '画像認識',
-            onTap: () => print('Edit tapped'),
-          ),
-          SpeedDialChild(
-            child: Icon(Icons.document_scanner),
-            label: '消費期限',
-            onTap: () async {
-              final dates = await Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const CameraScreen()),
-              );
-              setState(() => _afterDate = dates[0]);
-            },
-          ),
-        ],
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 25),
+        child: SpeedDial(
+          icon: Icons.camera_alt,
+          activeIcon: Icons.close,
+          backgroundColor: _primaryColor,
+          foregroundColor: Colors.white,
+          children: [
+            SpeedDialChild(
+              child: Icon(Icons.message),
+              label: 'Message',
+              onTap: () => print('Message tapped'),
+            ),
+            SpeedDialChild(
+              child: Icon(Icons.camera_alt),
+              label: 'Camera',
+              onTap: () async {
+                final dates = await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const CameraScreen()),
+                );
+                setState(() => _afterDate = dates[0]);
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
