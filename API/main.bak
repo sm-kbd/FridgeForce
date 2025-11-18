@@ -1,0 +1,103 @@
+from typing import Optional
+from dataclasses import dataclass, asdict
+import requests
+import json
+import random
+
+from fastapi import FastAPI
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
+
+from google import genai
+from google.genai import types
+
+
+MEALDBAPI = "https://www.themealdb.com/api/json/v1/1/"
+mealdbapi_ingredient = MEALDBAPI + "filter.php?i={ingredient}"
+mealdbapi_lookup = MEALDBAPI + "lookup.php?i={idMeal}"
+
+gemini_client = genai.Client()
+
+app = FastAPI()
+
+
+class DataModel(BaseModel):
+    ingredients: list[str]
+
+
+class Ingredients(BaseModel):
+    japanese_name: str
+    english_name: str
+
+def translate_ingredients(ingredients: list[str]):
+    prompt = ", ".join(ingredients)
+    response = gemini_client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            thinking_config=types.ThinkingConfig(thinking_budget=0),
+            response_mime_type="application/json",
+            response_schema=list[Ingredients],
+            system_instruction="""You are a translation assistant.
+Translate the following list of Japanese food ingredient names into English.""",
+        ),
+    )
+    return json.loads(response.text)
+
+
+def get_recipes_overviews(ingredients) -> list[dict]:
+    overviews = dict()
+    ids = []
+    for ingredient in ingredients:
+        response = requests.get(
+            mealdbapi_ingredient.format(ingredient=ingredient)
+        ).json()
+        meals = response.get("meals", [])
+        if meals:
+            for meal in meals:
+                overviews[int(meal["idMeal"])] = meal
+            ids.append(set(int(meal["idMeal"]) for meal in meals))
+
+    from pprint import pprint
+    if len(ids) > 1:
+        intersections = set.intersection(*ids)
+        overviews = [overviews[i] for i in intersections]
+    else:
+        overviews = [o for o in overviews.values()]
+
+    return overviews
+
+def get_recipe_detail(idMeal: int) -> list|None:
+    response = requests.get(mealdbapi_lookup.format(idMeal=idMeal)).json()
+    meals = response.get("meals")
+    if meals:
+        return meals[0]
+    else:
+        return None
+
+
+def translate_recipe(recipe) -> list[dict]:
+    response = gemini_client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=json.dumps(recipe),
+        config=types.GenerateContentConfig(
+            thinking_config=types.ThinkingConfig(thinking_budget=0),
+            response_mime_type="application/json",
+            system_instruction="""You are a translation assistant.
+Translate the values of the following JSON data into Japanese.""",
+        ),
+    )
+    return response.text
+
+
+@app.post("/overview")
+def overview(data: DataModel):
+    translated_ingredients = translate_ingredients(data.ingredients)
+    return get_recipes_overviews(
+        [ingredient["english_name"] for ingredient in translated_ingredients]
+    )
+
+
+@app.get("/details/{idMeal}")
+def details(idMeal: int):
+    return json.loads(translate_recipe(get_recipe_detail(idMeal)))
