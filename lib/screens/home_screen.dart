@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/database_service.dart';
 
-import 'recipe_screen.dart';
+import 'recipe_overview_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -348,7 +348,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => RecipeScreen(
+                        builder: (context) => RecipeOverviewScreen(
                           ingredients: _selectedFridgeItems
                               .map((item) => item.productName)
                               .toList(),

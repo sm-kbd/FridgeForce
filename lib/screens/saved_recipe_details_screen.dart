@@ -1,57 +1,52 @@
 import 'dart:convert';
+import 'package:crypto/crypto.dart';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
-const IP_ADDRESS = "http://nekopas.local:8000/";
+String hashString(String input) {
+  final bytes = utf8.encode(input);
+  final hash = sha256.convert(bytes);
+  return hash.toString();
+}
 
-class RecipeDetailsScreen extends StatefulWidget {
+class SavedRecipeDetailsScreen extends StatefulWidget {
   final String recipeName;
-  const RecipeDetailsScreen({required this.recipeName, Key? key})
+  const SavedRecipeDetailsScreen({required this.recipeName, Key? key})
     : super(key: key);
 
   @override
-  _RecipeDetailsScreenState createState() => _RecipeDetailsScreenState();
+  _SavedRecipeDetailsScreenState createState() =>
+      _SavedRecipeDetailsScreenState();
 }
 
-class _RecipeDetailsScreenState extends State<RecipeDetailsScreen> {
-  Map<String, dynamic>? _meal;
+class _SavedRecipeDetailsScreenState extends State<SavedRecipeDetailsScreen> {
+  Map<String, dynamic>? _recipe;
   bool _loading = true;
   String? _error;
 
   @override
   void initState() {
     super.initState();
-    _fetchMealDetails();
+    _getRecipeDetails();
   }
 
-  Future<void> _fetchMealDetails() async {
-    final uri = Uri.parse("${IP_ADDRESS}details/${widget.recipeName}");
-    try {
-      final response = await http.get(uri);
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> data = jsonDecode(response.body);
-        setState(() {
-          _meal = data;
-          _loading = false;
-        });
-      } else {
-        setState(() {
-          _loading = false;
-          _error = "レシピの取得に失敗しました (コード: ${response.statusCode})";
-        });
-      }
-    } catch (e) {
-      setState(() {
-        _loading = false;
-        _error = "エラーが発生しました: $e";
-      });
-    }
+  void _getRecipeDetails() async {
+    // no checks because if a recipe exists in saved.json but not as a file,
+    // the user did something stupid
+    final hashedFilename = hashString(widget.recipeName);
+    final dir = await getApplicationDocumentsDirectory();
+    final file = File("${dir.path}/$hashedFilename.json");
+    final raw = await file.readAsString();
+    _recipe = json.decode(raw);
+    _loading = false;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(_meal?['recipeName'] ?? widget.recipeName)),
+      appBar: AppBar(title: Text(_recipe?['recipeName'] ?? widget.recipeName)),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
@@ -64,7 +59,7 @@ class _RecipeDetailsScreenState extends State<RecipeDetailsScreen> {
                   children: [
                     // タイトル
                     Text(
-                      _meal?['recipeName'] ?? "",
+                      _recipe?['recipeName'] ?? "",
                       style: const TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
@@ -73,22 +68,22 @@ class _RecipeDetailsScreenState extends State<RecipeDetailsScreen> {
                     const SizedBox(height: 20),
 
                     // 説明
-                    if (_meal?['description'] != null)
+                    if (_recipe?['description'] != null)
                       Text(
-                        _meal!['description'],
+                        _recipe!['description'],
                         style: const TextStyle(fontSize: 16, height: 1.5),
                       ),
                     const SizedBox(height: 20),
 
                     // 調理時間
-                    if (_meal?['prepTime'] != null)
+                    if (_recipe?['prepTime'] != null)
                       Text(
-                        "準備時間: ${_meal!['prepTime']}",
+                        "準備時間: ${_recipe!['prepTime']}",
                         style: const TextStyle(fontSize: 18),
                       ),
-                    if (_meal?['coolTime'] != null)
+                    if (_recipe?['coolTime'] != null)
                       Text(
-                        "冷却時間: ${_meal!['coolTime']}",
+                        "冷却時間: ${_recipe!['coolTime']}",
                         style: const TextStyle(fontSize: 18),
                       ),
                     const SizedBox(height: 24),
@@ -103,7 +98,7 @@ class _RecipeDetailsScreenState extends State<RecipeDetailsScreen> {
                     ),
                     const SizedBox(height: 8),
 
-                    ...(_meal?['ingredients'] as List<dynamic>).map(
+                    ...(_recipe?['ingredients'] as List<dynamic>).map(
                       (ing) => Padding(
                         padding: const EdgeInsets.symmetric(vertical: 2),
                         child: Text(
@@ -125,7 +120,7 @@ class _RecipeDetailsScreenState extends State<RecipeDetailsScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      _meal?['instructions'] ?? "",
+                      _recipe?['instructions'] ?? "",
                       style: const TextStyle(fontSize: 16, height: 1.6),
                     ),
                     const SizedBox(height: 24),

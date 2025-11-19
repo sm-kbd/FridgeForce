@@ -1,87 +1,75 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 
-import 'recipe_details_screen.dart';
+import 'saved_recipe_details_screen.dart';
 
-const IP_ADDRESS = "http://nekopas.local:8000/";
-
-class Ingredient {
-  final String item;
-  final String quantity;
-
-  Ingredient({required this.item, required this.quantity});
-
-  factory Ingredient.fromJson(Map<String, dynamic> json) {
-    return Ingredient(item: json['item'], quantity: json['quantity']);
-  }
-}
-
-class RecipeScreen extends StatefulWidget {
-  final List<String> ingredients;
-  const RecipeScreen({required List<String> this.ingredients, Key? key})
-    : super(key: key);
+class SavedRecipeScreen extends StatefulWidget {
+  const SavedRecipeScreen({Key? key}) : super(key: key);
 
   @override
-  _RecipeScreenState createState() => _RecipeScreenState();
+  _SavedRecipeScreenState createState() => _SavedRecipeScreenState();
 }
 
-class _RecipeScreenState extends State<RecipeScreen> {
-  List<Map<String, String>> _meals = [];
+class _SavedRecipeScreenState extends State<SavedRecipeScreen> {
+  List<Map<String, String>> _savedRecipes = [];
   bool _loading = true;
 
   @override
   void initState() {
     super.initState();
-    _fetchMeals();
+    _loadJson();
   }
 
-  Future<void> _fetchMeals() async {
-    if (widget.ingredients.isEmpty) {
-      setState(() => _loading = false);
-      return;
+  void _loadJson() async {
+    _savedRecipes = await _loadSavedRecipes();
+    setState(() {});
+    _loading = false;
+  }
+
+  Future<List<Map<String, String>>> _loadSavedRecipes() async {
+    final dir = await getApplicationDocumentsDirectory();
+    final file = File('${dir.path}/saved.json');
+
+    if (!await file.exists()) {
+      return [];
     }
-    final uri = Uri.parse("${IP_ADDRESS}overview");
-    final request = http.Request('POST', uri);
-    request.headers['Content-Type'] = 'application/json';
-    request.body = jsonEncode({"ingredients": widget.ingredients}); // ← 仮入力
+
+    final raw = await file.readAsString();
+
+    if (raw.trim().isEmpty) {
+      return [];
+    }
 
     try {
-      final response = await request.send();
-      if (response.statusCode == 200) {
-        final body = await response.stream.bytesToString();
-        final data = jsonDecode(body);
-        setState(() {
-          _meals = (data as List)
-              .map((item) => Map<String, String>.from(item))
-              .toList();
-          _loading = false;
-        });
+      final decoded = json.decode(raw);
+
+      if (decoded is List) {
+        return decoded.whereType<Map<String, String>>().toList();
       } else {
-        setState(() => _loading = false);
+        return [];
       }
     } catch (e) {
-      setState(() => _loading = false);
-      debugPrint("レシピ取得エラー: $e");
+      print("JSON parse error: $e");
+      return [];
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("レシピ一覧")),
+      appBar: AppBar(title: const Text("ブックマーク一覧")),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : SafeArea(
-              child: widget.ingredients.isEmpty
+              child: _savedRecipes.isEmpty
                   ? Center(child: Text("保存されたレシピはありません"))
-                  : _meals.isEmpty
-                  ? Center(child: Text("該当する料理は見つかりませんでした"))
                   : ListView.builder(
-                      itemCount: _meals.length,
+                      itemCount: _savedRecipes.length,
                       itemBuilder: (context, index) {
-                        final item = _meals[index];
+                        final item = _savedRecipes[index];
                         final name = item['name'] ?? 'Unknown';
                         final description = item['description'] ?? '';
                         final imageUrl = '';
@@ -102,7 +90,9 @@ class _RecipeScreenState extends State<RecipeScreen> {
                                 context,
                                 MaterialPageRoute(
                                   builder: (context) =>
-                                      RecipeDetailsScreen(recipeName: name),
+                                      SavedRecipeDetailsScreen(
+                                        recipeName: name,
+                                      ),
                                 ),
                               );
                             },

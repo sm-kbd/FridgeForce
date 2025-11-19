@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 import '../services/database_service.dart';
 import 'home_screen.dart';
 import 'input_screen.dart';
-import 'recipe_screen.dart';
+import 'recipe_overview_screen.dart';
+import 'saved_recipe_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -17,7 +18,7 @@ class _MainScreenState extends State<MainScreen> {
   static List<Widget> _widgetOptions = <Widget>[
     HomeScreen(),
     InputScreen(),
-    RecipeScreen(ingredients: []),
+    SavedRecipeScreen(),
   ];
 
   @override
@@ -32,7 +33,10 @@ class _MainScreenState extends State<MainScreen> {
             label: 'リストアップ',
           ),
           BottomNavigationBarItem(icon: Icon(Icons.add), label: '登録'),
-          BottomNavigationBarItem(icon: Icon(Icons.restaurant), label: 'レシピ提案'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.restaurant),
+            label: 'ブックマーク',
+          ),
         ],
         currentIndex: _currentIndex,
 
