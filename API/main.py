@@ -51,16 +51,28 @@ class Ingredients(BaseModel):
 
 
 def get_recipes_names(ingredients: list[str]) -> list[dict[str, str]]:
-    response = gemini_client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=f"Give me just the names of and a simple one line description of {NUM_SUGGESTIONS} japanese household recipes using the following ingredients: {', '.join(ingredients)}",
-        config=types.GenerateContentConfig(
-            thinking_config=types.ThinkingConfig(thinking_budget=0),
-            response_mime_type="application/json",
-            system_instruction=f"You will only ever use Japanese when replying.",
-        ),
-    )
-    return json.loads(response.text)
+    recipes = []
+    for file in os.listdir(os.path.join(RECIPES_DIR)):
+        with open(os.path.join(os.path.join(RECIPES_DIR), file)) as f:
+            data = json.load(f)
+            recipes.append(
+                {"recipeName": data["recipeName"], "description": data["description"]}
+            )
+    return recipes
+
+    try:
+        response = gemini_client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=f"With the following JSON keys: 'recipeName, description', give me just the names of and a simple one line description of {NUM_SUGGESTIONS} japanese household recipes using the following ingredients: {', '.join(ingredients)}",
+            config=types.GenerateContentConfig(
+                thinking_config=types.ThinkingConfig(thinking_budget=0),
+                response_mime_type="application/json",
+                system_instruction=f"You will only ever use Japanese when replying.",
+            ),
+        )
+        return json.loads(response.text)
+    except errors.APIError as e:
+        return []
 
 
 def get_recipe_images(names: list[str]) -> None:
@@ -108,7 +120,7 @@ def get_recipe_detail(recipe_name: str) -> str | None:
     else:
         json_data = json.loads(response.text)
         print(json_data)
-        with open(os.path.join(RECIPES_DIR, filename), 'w') as file:
+        with open(os.path.join(RECIPES_DIR, filename), "w") as file:
             json.dump(json_data, file, ensure_ascii=False, indent=4)
         return json_data
 
