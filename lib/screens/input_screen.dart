@@ -522,33 +522,51 @@ class _InputScreenState extends State<InputScreen> {
           ),
         ],
       ),
+
       floatingActionButton: Padding(
         padding: const EdgeInsets.only(bottom: 25),
-        child: SpeedDial(
-          icon: Icons.camera_alt,
-          activeIcon: Icons.close,
+        child: FloatingActionButton(
           backgroundColor: _primaryColor,
           foregroundColor: Colors.white,
-          children: [
-            SpeedDialChild(
-              child: Icon(Icons.message),
-              label: 'Message',
-              onTap: () => print('Message tapped'),
-            ),
-            SpeedDialChild(
-              child: Icon(Icons.camera_alt),
-              label: 'Camera',
-              onTap: () async {
-                final dates = await Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const CameraScreen()),
-                );
-                setState(() => _afterDate = dates[0]);
-              },
-            ),
-          ],
+          child: const Icon(Icons.camera_alt),
+          onPressed: () async {
+            final dates = await Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const CameraScreen()),
+            );
+            if (dates != null && dates.isNotEmpty) {
+              setState(() => _afterDate = dates[0]);
+            }
+          },
         ),
       ),
+      //       floatingActionButton: Padding(
+      //         padding: const EdgeInsets.only(bottom: 25),
+      //         child: SpeedDial(
+      //           icon: Icons.camera_alt,
+      //           activeIcon: Icons.close,
+      //           backgroundColor: _primaryColor,
+      //           foregroundColor: Colors.white,
+      //           children: [
+      //             SpeedDialChild(
+      //               child: Icon(Icons.message),
+      //               label: 'Message',
+      //               onTap: () => print('Message tapped'),
+      //             ),
+      //             SpeedDialChild(
+      //               child: Icon(Icons.camera_alt),
+      //               label: 'Camera',
+      //               onTap: () async {
+      //                 final dates = await Navigator.push(
+      //                   context,
+      //                   MaterialPageRoute(builder: (context) => const CameraScreen()),
+      //                 );
+      //                 setState(() => _afterDate = dates[0]);
+      //               },
+      //             ),
+      //           ],
+      //         ),
+      //       ),
     );
   }
 }
