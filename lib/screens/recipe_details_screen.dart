@@ -1,8 +1,16 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:crypto/crypto.dart';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
 
 const IP_ADDRESS = "http://nekopas.local:8000/";
+
+String recipeNameToFileName(String recipeName) {
+  final hash = sha1.convert(utf8.encode(recipeName)).toString();
+  return hash.substring(0, 10); // short safe filename
+}
 
 class RecipeDetailsScreen extends StatefulWidget {
   final String recipeName;
@@ -17,11 +25,26 @@ class _RecipeDetailsScreenState extends State<RecipeDetailsScreen> {
   Map<String, dynamic>? _meal;
   bool _loading = true;
   String? _error;
+  bool _isBookmarked = false;
 
   @override
   void initState() {
     super.initState();
     _fetchMealDetails();
+  }
+
+  Future<void> _checkIfBookmarked() async {
+    if (_meal == null) return;
+
+    final name = _meal!['recipeName'];
+    final fileName = recipeNameToFileName(name);
+
+    final dir = await getApplicationDocumentsDirectory();
+    final file = File('${dir.path}/$fileName.json');
+
+    setState(() {
+      _isBookmarked = file.existsSync();
+    });
   }
 
   Future<void> _fetchMealDetails() async {
@@ -34,6 +57,9 @@ class _RecipeDetailsScreenState extends State<RecipeDetailsScreen> {
           _meal = data;
           _loading = false;
         });
+
+        // ✅ Check bookmark now that _meal is loaded
+        await _checkIfBookmarked();
       } else {
         setState(() {
           _loading = false;
@@ -51,7 +77,36 @@ class _RecipeDetailsScreenState extends State<RecipeDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(_meal?['recipeName'] ?? widget.recipeName)),
+      appBar: AppBar(
+        title: Text(_meal?['recipeName'] ?? widget.recipeName),
+        actions: [
+          IconButton(
+            icon: Icon(_isBookmarked ? Icons.bookmark : Icons.add),
+            tooltip: _isBookmarked ? 'すでにブックマーク済み' : 'ブックマークに追加',
+            onPressed: _isBookmarked
+                ? null // ✅ Disable button if already bookmarked
+                : () async {
+                    if (_meal == null) return;
+
+                    final name = _meal?['recipeName'];
+                    final fileName = recipeNameToFileName(name);
+
+                    final dir = await getApplicationDocumentsDirectory();
+                    final file = File('${dir.path}/$fileName.json');
+
+                    await file.writeAsString(jsonEncode(_meal));
+
+                    setState(() {
+                      _isBookmarked = true; // ✅ Switch icon immediately
+                    });
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('ブックマークに追加しました')),
+                    );
+                  },
+          ),
+        ],
+      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null

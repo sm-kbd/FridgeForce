@@ -1,3 +1,4 @@
+import 'dart:core';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -14,8 +15,9 @@ class SavedRecipeScreen extends StatefulWidget {
 }
 
 class _SavedRecipeScreenState extends State<SavedRecipeScreen> {
-  List<Map<String, String>> _savedRecipes = [];
   bool _loading = true;
+  List<Map<String, String>> _savedRecipes = [];
+  Set<int> _selectedIndexes = {};
 
   @override
   void initState() {
@@ -24,48 +26,110 @@ class _SavedRecipeScreenState extends State<SavedRecipeScreen> {
   }
 
   void _loadJson() async {
-    _savedRecipes = await _loadSavedRecipes();
+    await _loadSavedRecipes();
     setState(() {});
     _loading = false;
   }
 
-  Future<List<Map<String, String>>> _loadSavedRecipes() async {
-    final dir = await getApplicationDocumentsDirectory();
-    final file = File('${dir.path}/saved.json');
-
-    if (!await file.exists()) {
-      return [];
-    }
-
-    final raw = await file.readAsString();
-
-    if (raw.trim().isEmpty) {
-      return [];
-    }
-
+  Future<void> _loadSavedRecipes() async {
     try {
-      final decoded = json.decode(raw);
+      final dir = await getApplicationDocumentsDirectory();
+      final files = dir.listSync();
 
-      if (decoded is List) {
-        return decoded.whereType<Map<String, String>>().toList();
-      } else {
-        return [];
+      final List<Map<String, String>> loaded = [];
+
+      for (final file in files) {
+        if (file is File && file.path.endsWith('.json')) {
+          final content = await file.readAsString();
+          final data = jsonDecode(content);
+
+          loaded.add({
+            'name': data['recipeName'] ?? 'Unknown',
+            'description': data['description'] ?? '',
+            'path': file.path,
+          });
+        }
       }
+
+      setState(() {
+        _savedRecipes = loaded;
+        _loading = false;
+        _selectedIndexes.clear();
+      });
     } catch (e) {
-      print("JSON parse error: $e");
-      return [];
+      print("Error loading bookmarks: $e");
+      setState(() => _loading = false);
     }
   }
 
+  Future<void> _deleteSelectedBookmarks() async {
+    if (_selectedIndexes.isEmpty) return;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('削除確認'),
+          content: const Text('選択したブックマークを削除してもよろしいですか？'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('キャンセル'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('削除', style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        );
+      },
+    );
+
+    // If user canceled, do nothing
+    if (confirm != true) return;
+
+    // Sort in reverse to avoid index shift when removing
+    final indexes = _selectedIndexes.toList()..sort((a, b) => b.compareTo(a));
+
+    for (final index in indexes) {
+      final path = _savedRecipes[index]['path'];
+      final file = File(path!);
+      if (await file.exists()) {
+        await file.delete();
+      }
+      _savedRecipes.removeAt(index);
+    }
+
+    setState(() {
+      _selectedIndexes.clear();
+    });
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text("選択したブックマークを削除しました")));
+  }
+
+  @override
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("ブックマーク一覧")),
+      appBar: AppBar(
+        title: const Text("ブックマーク一覧"),
+        actions: _selectedIndexes.isEmpty
+            ? []
+            : [
+                IconButton(
+                  icon: const Icon(Icons.delete),
+                  onPressed: _deleteSelectedBookmarks,
+                ),
+              ],
+      ),
+
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : SafeArea(
               child: _savedRecipes.isEmpty
-                  ? Center(child: Text("保存されたレシピはありません"))
+                  ? const Center(child: Text("保存されたレシピはありません"))
                   : ListView.builder(
                       itemCount: _savedRecipes.length,
                       itemBuilder: (context, index) {
@@ -73,8 +137,12 @@ class _SavedRecipeScreenState extends State<SavedRecipeScreen> {
                         final name = item['name'] ?? 'Unknown';
                         final description = item['description'] ?? '';
                         final imageUrl = '';
+                        final isSelected = _selectedIndexes.contains(index);
 
                         return Card(
+                          color: isSelected
+                              ? Colors.blue.withOpacity(0.15)
+                              : null,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -85,22 +153,73 @@ class _SavedRecipeScreenState extends State<SavedRecipeScreen> {
                           ),
                           child: InkWell(
                             borderRadius: BorderRadius.circular(12),
-                            onTap: () {
-                              Navigator.push(
+
+                            onLongPress: () {
+                              setState(() {
+                                if (isSelected) {
+                                  _selectedIndexes.remove(index);
+                                } else {
+                                  _selectedIndexes.add(index);
+                                }
+                              });
+                            },
+
+                            onTap: () async {
+                              if (_selectedIndexes.isNotEmpty) {
+                                setState(() {
+                                  if (isSelected) {
+                                    _selectedIndexes.remove(index);
+                                  } else {
+                                    _selectedIndexes.add(index);
+                                  }
+                                });
+                                return;
+                              }
+
+                              final path = item['path'] as String?;
+                              if (path == null) return; // skip if null
+
+                              final filename = path
+                                  .split('/')
+                                  .last
+                                  .replaceAll('.json', '');
+                              final deleted = await Navigator.push<bool>(
                                 context,
                                 MaterialPageRoute(
                                   builder: (context) =>
                                       SavedRecipeDetailsScreen(
-                                        recipeName: name,
+                                        filename: filename,
                                       ),
                                 ),
                               );
+                              print("=================================");
+                              print(deleted);
+                              print("=================================");
+                              if (deleted == true) {
+                                setState(() {
+                                  _savedRecipes.removeAt(index);
+                                  _selectedIndexes.remove(index);
+                                });
+                              }
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('ブックマークを削除しました')),
+                              );
                             },
+
                             child: Padding(
                               padding: const EdgeInsets.all(12.0),
                               child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
+                                  if (isSelected)
+                                    const Padding(
+                                      padding: EdgeInsets.only(right: 6),
+                                      child: Icon(
+                                        Icons.check_circle,
+                                        color: Colors.blue,
+                                      ),
+                                    ),
+
                                   ClipRRect(
                                     borderRadius: BorderRadius.circular(8),
                                     child: imageUrl.isNotEmpty
@@ -120,7 +239,9 @@ class _SavedRecipeScreenState extends State<SavedRecipeScreen> {
                                             ),
                                           ),
                                   ),
+
                                   const SizedBox(width: 12),
+
                                   Expanded(
                                     child: Column(
                                       crossAxisAlignment:

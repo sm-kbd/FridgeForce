@@ -1,19 +1,12 @@
 import 'dart:convert';
-import 'package:crypto/crypto.dart';
 import 'dart:io';
-import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-
-String hashString(String input) {
-  final bytes = utf8.encode(input);
-  final hash = sha256.convert(bytes);
-  return hash.toString();
-}
+import 'package:path_provider/path_provider.dart';
 
 class SavedRecipeDetailsScreen extends StatefulWidget {
-  final String recipeName;
-  const SavedRecipeDetailsScreen({required this.recipeName, Key? key})
+  final String filename; // ✅ now we pass filename directly
+
+  const SavedRecipeDetailsScreen({required this.filename, Key? key})
     : super(key: key);
 
   @override
@@ -32,21 +25,88 @@ class _SavedRecipeDetailsScreenState extends State<SavedRecipeDetailsScreen> {
     _getRecipeDetails();
   }
 
-  void _getRecipeDetails() async {
-    // no checks because if a recipe exists in saved.json but not as a file,
-    // the user did something stupid
-    final hashedFilename = hashString(widget.recipeName);
-    final dir = await getApplicationDocumentsDirectory();
-    final file = File("${dir.path}/$hashedFilename.json");
-    final raw = await file.readAsString();
-    _recipe = json.decode(raw);
-    _loading = false;
+  Future<void> _getRecipeDetails() async {
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      final file = File("${dir.path}/${widget.filename}.json");
+
+      if (!await file.exists()) {
+        throw Exception("ファイルが存在しません");
+      }
+
+      final raw = await file.readAsString();
+      final data = json.decode(raw);
+
+      setState(() {
+        _recipe = data;
+        _loading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = "レシピの読み込みに失敗しました";
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _confirmAndDelete() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('削除確認'),
+          content: const Text('このブックマークを削除してもよろしいですか？'),
+          actions: [
+            TextButton(
+              onPressed: () =>
+                  Navigator.of(context).pop(false), // closes dialog
+              child: const Text('キャンセル'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true), // closes dialog
+              child: const Text('削除', style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirm != true) return; // user canceled
+
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      final file = File("${dir.path}/${widget.filename}.json");
+      if (await file.exists()) {
+        await file.delete();
+      }
+
+      // ✅ Now pop the **screen** with true to notify previous screen
+      Navigator.of(context).pop(true);
+
+      // optional snackbar
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('ブックマークを削除しました')));
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('削除に失敗しました')));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(_recipe?['recipeName'] ?? widget.recipeName)),
+      appBar: AppBar(
+        title: Text(_recipe?['recipeName'] ?? "レシピ詳細"),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete),
+            tooltip: 'ブックマークを削除',
+            onPressed: _recipe == null ? null : _confirmAndDelete,
+          ),
+        ],
+      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
@@ -57,7 +117,7 @@ class _SavedRecipeDetailsScreenState extends State<SavedRecipeDetailsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // タイトル
+                    // ✅ タイトル
                     Text(
                       _recipe?['recipeName'] ?? "",
                       style: const TextStyle(
@@ -67,7 +127,7 @@ class _SavedRecipeDetailsScreenState extends State<SavedRecipeDetailsScreen> {
                     ),
                     const SizedBox(height: 20),
 
-                    // 説明
+                    // ✅ 説明
                     if (_recipe?['description'] != null)
                       Text(
                         _recipe!['description'],
@@ -75,7 +135,7 @@ class _SavedRecipeDetailsScreenState extends State<SavedRecipeDetailsScreen> {
                       ),
                     const SizedBox(height: 20),
 
-                    // 調理時間
+                    // ✅ 調理時間
                     if (_recipe?['prepTime'] != null)
                       Text(
                         "準備時間: ${_recipe!['prepTime']}",
@@ -86,9 +146,10 @@ class _SavedRecipeDetailsScreenState extends State<SavedRecipeDetailsScreen> {
                         "冷却時間: ${_recipe!['coolTime']}",
                         style: const TextStyle(fontSize: 18),
                       ),
+
                     const SizedBox(height: 24),
 
-                    // 材料
+                    // ✅ 材料
                     const Text(
                       "材料",
                       style: TextStyle(
@@ -110,7 +171,7 @@ class _SavedRecipeDetailsScreenState extends State<SavedRecipeDetailsScreen> {
 
                     const SizedBox(height: 24),
 
-                    // 作り方
+                    // ✅ 作り方
                     const Text(
                       "作り方",
                       style: TextStyle(
@@ -119,13 +180,15 @@ class _SavedRecipeDetailsScreenState extends State<SavedRecipeDetailsScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
+
                     Text(
                       _recipe?['instructions'] ?? "",
                       style: const TextStyle(fontSize: 16, height: 1.6),
                     ),
+
                     const SizedBox(height: 24),
 
-                    // 足りない食材リンク（デモ）
+                    // ✅ デモリンク
                     const Text(
                       "足りない食材を購入",
                       style: TextStyle(
