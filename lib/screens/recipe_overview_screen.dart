@@ -5,7 +5,8 @@ import 'package:http/http.dart' as http;
 
 import 'recipe_details_screen.dart';
 
-const IP_ADDRESS = "http://nekopas.local:8000/";
+// const IP_ADDRESS = "http://nekopas.local:8000/";
+const IP_ADDRESS = "http://oonishirinnonotobukkukonpyuta.local:8000/";
 
 class RecipeOverviewScreen extends StatefulWidget {
   final List<String> ingredients;

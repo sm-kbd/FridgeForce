@@ -5,7 +5,8 @@ import 'package:crypto/crypto.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 
-const IP_ADDRESS = "http://nekopas.local:8000/";
+// const IP_ADDRESS = "http://nekopas.local:8000/";
+const IP_ADDRESS = "http://oonishirinnonotobukkukonpyuta.local:8000/";
 
 String recipeNameToFileName(String recipeName) {
   final hash = sha1.convert(utf8.encode(recipeName)).toString();
