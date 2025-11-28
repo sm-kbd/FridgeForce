@@ -51,6 +51,7 @@ dependencies:
   rxdart: ^0.28.0
   flutter_speed_dial: ^7.0.0
   crypto: ^3.0.7
+  settings_ui: ^2.0.2
 
 dev_dependencies:
   sqflite_common_ffi: ^2.3.0

@@ -177,7 +177,7 @@ class _InputScreenState extends State<InputScreen> {
                           ? null
                           : () async {
                               final expDate = await DatabaseService.instance
-                                  .getDefaultExpDates(
+                                  .getDefaultExpDatesByName(
                                     _itemController.text.trim(),
                                   );
                               if (expDate != null) {

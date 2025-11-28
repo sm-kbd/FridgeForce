@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/database_service.dart';
-
 import 'recipe_overview_screen.dart';
+import 'settings/settings.dart';
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -127,7 +127,20 @@ class _HomeScreenState extends State<HomeScreen> {
     final screenWidth = MediaQuery.of(context).size.width;
 
     return Scaffold(
-      appBar: AppBar(title: const Text("食材一覧")), // "FridgeItems List"
+      appBar: AppBar(
+        title: const Text("食材一覧"),
+        actions: [
+          IconButton(
+            onPressed: () => {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SettingsPage()),
+              ),
+            },
+            icon: const Icon(Icons.settings_outlined),
+          ),
+        ],
+      ), // "FridgeItems List"
       body: Column(
         children: [
           // Toolbar row

@@ -120,7 +120,20 @@ class DatabaseService {
     }
   }
 
-  Future<int?> getDefaultExpDates(String name) async {
+  Future<void> addDefaultExpDates(String content, int day) async {
+    final db = await database;
+    await db.insert(_expDatesTableName, {
+      _expDateProductName: content,
+      _expDateNumDays: day,
+    });
+  }
+
+  Future<List<Map<String, dynamic>>> getAllDefaultExpDates() async {
+    final db = await database;
+    return await db.query(_expDatesTableName);
+  }
+
+  Future<int?> getDefaultExpDatesByName(String name) async {
     final db = await database;
     final result = await db.query(
       _expDatesTableName,
@@ -129,6 +142,15 @@ class DatabaseService {
     );
     if (result.isEmpty) return null;
     return result.first['days'] as int;
+  }
+
+  Future<void> deleteDefaultExpDate(int id) async {
+    final db = await database;
+    await db.delete(
+      _expDatesTableName,
+      where: '$_expDateId = ?',
+      whereArgs: [id],
+    );
   }
 
   // Category methods
