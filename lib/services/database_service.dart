@@ -144,12 +144,12 @@ class DatabaseService {
     return result.first['days'] as int;
   }
 
-  Future<void> deleteDefaultExpDate(int id) async {
+  Future<void> deleteDefaultExpDate(String name) async {
     final db = await database;
     await db.delete(
       _expDatesTableName,
-      where: '$_expDateId = ?',
-      whereArgs: [id],
+      where: '$_expDateProductName = ?',
+      whereArgs: [name],
     );
   }
 

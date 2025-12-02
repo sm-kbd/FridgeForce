@@ -61,11 +61,11 @@ class _MyHomePageState extends State<MyHomePage> {
     ).showSnackBar(const SnackBar(content: Text('保存しました')));
   }
 
-  Future<void> _deleteItem(int id) async {
-    await _databaseService.deleteDefaultExpDate(id);
+  Future<void> _deleteItem(String name) async {
+    await _databaseService.deleteDefaultExpDate(name);
     setState(() {
       _savedItems = List<Map<String, dynamic>>.from(_savedItems)
-        ..removeWhere((item) => item['id'] == id);
+        ..removeWhere((item) => item['name'] == name);
     });
   }
 
@@ -163,7 +163,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                   ),
                                 );
                                 if (confirm == true) {
-                                  _deleteItem(item['id']);
+                                  _deleteItem(item['name']);
                                 }
                               },
                             ),

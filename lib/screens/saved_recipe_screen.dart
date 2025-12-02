@@ -192,18 +192,15 @@ class _SavedRecipeScreenState extends State<SavedRecipeScreen> {
                                       ),
                                 ),
                               );
-                              print("=================================");
-                              print(deleted);
-                              print("=================================");
                               if (deleted == true) {
                                 setState(() {
                                   _savedRecipes.removeAt(index);
                                   _selectedIndexes.remove(index);
                                 });
-                              }
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(content: Text('ブックマークを削除しました')),
                               );
+                              }
                             },
 
                             child: Padding(
